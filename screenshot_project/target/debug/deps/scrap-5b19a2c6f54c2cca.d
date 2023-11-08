@@ -1,0 +1,11 @@
+C:\Users\fedeb\OneDrive\Desktop\Screenshot_Rust_Project\screenshot_project\target\debug\deps\libscrap-5b19a2c6f54c2cca.rmeta: C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\lib.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\common\mod.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\dxgi\mod.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\dxgi\ffi.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\common\dxgi.rs
+
+C:\Users\fedeb\OneDrive\Desktop\Screenshot_Rust_Project\screenshot_project\target\debug\deps\libscrap-5b19a2c6f54c2cca.rlib: C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\lib.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\common\mod.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\dxgi\mod.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\dxgi\ffi.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\common\dxgi.rs
+
+C:\Users\fedeb\OneDrive\Desktop\Screenshot_Rust_Project\screenshot_project\target\debug\deps\scrap-5b19a2c6f54c2cca.d: C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\lib.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\common\mod.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\dxgi\mod.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\dxgi\ffi.rs C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\common\dxgi.rs
+
+C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\lib.rs:
+C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\common\mod.rs:
+C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\dxgi\mod.rs:
+C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\dxgi\ffi.rs:
+C:\Users\fedeb\.cargo\registry\src\index.crates.io-6f17d22bba15001f\scrap-0.3.2\src\common\dxgi.rs:
