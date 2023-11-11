@@ -36,17 +36,20 @@ fn main() -> Result<(), Error> {
     // Converte l'immagine RGBA in BGRA perche crap lavora in BGRA
     let screenshot = convert_rgba_to_bgra(&screenshot);
 
-    save_image(&screenshot)?;
+    let save_path = Path::new("screenshot.png");
+    save_image(&screenshot, save_path)?;
 
-    let x = 0;  
+    let x = 0;
     let y = 0;
-    let width = 200;  
+    let width = 200;
     let height = 200;
 
     let cropped_image = crop_image(&screenshot, x, y, width, height);
 
-    save_image(&cropped_image)?;
+    let cropped_save_path = Path::new("cropped_screenshot.png");
+    save_image(&cropped_image, cropped_save_path)?;
 
+     
     Ok(())
 }
 
@@ -61,8 +64,8 @@ fn convert_rgba_to_bgra(image: &DynamicImage) -> DynamicImage {
     DynamicImage::ImageRgba8(bgra_image)
 }
 
-fn save_image(image: &DynamicImage) -> Result<(), Error> {
-    image.save(Path::new("screenshot.png")).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+fn save_image(image: &DynamicImage, path: &Path) -> Result<(), Error> {
+    image.save(path).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     Ok(())
 }
 
