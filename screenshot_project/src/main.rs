@@ -2,7 +2,7 @@ extern crate scrap;
 extern crate image;
 
 use scrap::{Capturer, Display};
-use image::{DynamicImage, ImageBuffer};
+use image::{DynamicImage, Rgba, GenericImageView};
 use std::io::Error;
 use std::path::Path;
 
@@ -31,7 +31,10 @@ fn main() -> Result<(), Error> {
         }
     };
 
-    let screenshot = DynamicImage::ImageRgba8(ImageBuffer::from_raw(w, h, screenshot.to_vec()).unwrap());
+    let screenshot = DynamicImage::ImageRgba8(image::ImageBuffer::from_raw(w, h, screenshot.to_vec()).unwrap());
+
+    // Converte l'immagine RGBA in BGRA perche crap lavora in BGRA
+    let screenshot = convert_rgba_to_bgra(&screenshot);
 
     save_image(&screenshot)?;
 
@@ -47,11 +50,22 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn crop_image(image: &DynamicImage, x: u32, y: u32, width: u32, height: u32) -> DynamicImage {
-    image.crop_imm(x, y, width, height)
+fn convert_rgba_to_bgra(image: &DynamicImage) -> DynamicImage {
+    let mut bgra_image = image::ImageBuffer::new(image.width(), image.height());
+
+    for (x, y, pixel) in bgra_image.enumerate_pixels_mut() {
+        let rgba_pixel = image.get_pixel(x, y);
+        *pixel = Rgba([rgba_pixel[2], rgba_pixel[1], rgba_pixel[0], rgba_pixel[3]]);
+    }
+
+    DynamicImage::ImageRgba8(bgra_image)
 }
 
 fn save_image(image: &DynamicImage) -> Result<(), Error> {
     image.save(Path::new("screenshot.png")).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     Ok(())
+}
+
+fn crop_image(image: &DynamicImage, x: u32, y: u32, width: u32, height: u32) -> DynamicImage {
+    image.crop_imm(x, y, width, height)
 }
