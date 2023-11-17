@@ -1,6 +1,7 @@
 extern crate image;
 extern crate gif;
 extern crate screenshots;
+extern crate hotkey;
 
 use image::Rgba;
 use screenshots::Screen;
@@ -8,7 +9,10 @@ use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::convert::TryInto;
+use std::thread::sleep;
+use std::time::Duration;
 use gif::{Encoder, Frame};
+use hotkey::modifiers;
 
 struct ImageParams {
     x_pos: i32,
@@ -18,46 +22,76 @@ struct ImageParams {
 }
 
 fn main() -> Result<(), Error> {
+    // Tutti gli schermi totali, se si deve prendere il monitor principale ricorda che screen.display_info.is_primary = true
     let screens = Screen::all().unwrap();
 
-    let choice = 1;
-    let format: &str = "gif";
+    // Scelte da prendere dal front-end
+    let choice = 0;
+    let format: &str = "png";
+    let time = Duration::from_secs(5);
 
-    let screen = match screens.get(choice) {
+    // Creazione Hotkey
+    let mut hotkey = hotkey::Listener::new();
+    hotkey.register_hotkey(modifiers::CONTROL | modifiers::SHIFT, 'A' as u32, || {
+        println!("Ctrl-Shift-A pressed!"); //Insert code for hotkeys
+    })
+    .unwrap();
+
+    // Rimane in ascolto della hot keys, probabilmente lo dovrò mettere in un thread separato
+    // hotkey.listen();
+
+    // Fa partire il timer
+    //sleep(time);
+
+    // Sceglie il monitor
+    let screen = choose_screen(&screens, choice); // qua se mi serve lo schermo principale passo l'indice legato ad esso
+
+    // Screen di tutta la schermata
+    capture_full_screen_and_save(&screen, format, "screenshot_full")?;
+
+    // Screen ritagliato con parametri inventanti che dovranno essere passati dal front-end
+    let cropped_image_params = ImageParams {
+        x_pos: 0,
+        y_pos: 200,
+        width: 1000,
+        height: 500,
+    };
+    capture_cropped_screen_and_save(&screen, &cropped_image_params, format, "screenshot_cropped")?;
+
+    Ok(())
+}
+
+fn choose_screen(screens: &Vec<Screen>, choice: usize) -> &Screen {
+    match screens.get(choice) {
         Some(selected_screen) => selected_screen,
         None => {
             eprintln!("Invalid screen choice");
-            return Ok(());
+            panic!("Invalid screen choice");
         }
-    };
+    }
+}
 
-    let mut image_params = ImageParams {
-        x_pos: 0,
-        y_pos: 0,
-        width: screen.display_info.width,
-        height: screen.display_info.height,
-    };
-
+fn capture_full_screen_and_save(screen: &Screen, format: &str, file_name: &str) -> Result<(), Error> {
     let image = &screen.capture().unwrap();
-    if format == "gif" {
-        save_gif(image, &format!("screenshot_1.{}", format))?;
-    } else {
-        save_image(image, &format!("screenshot_1.{}", format))?;
+    save_image_or_gif(image, format, file_name)
+}
+
+fn capture_cropped_screen_and_save(screen: &Screen, params: &ImageParams, format: &str, file_name: &str) -> Result<(), Error> {
+    let cropped_image = crop_image(screen, params);
+    save_image_or_gif(&cropped_image, format, file_name)
+}
+
+fn save_image_or_gif(image: &image::ImageBuffer<Rgba<u8>, Vec<u8>>, format: &str, file_name: &str) -> Result<(), Error> {
+    match format.to_lowercase().as_str() {
+        "jpg" | "jpeg" | "png" | "gif" => {
+            if format == "gif" {
+                save_gif(image, &format!("{}.{}", file_name, format))
+            } else {
+                save_image(image, &format!("{}.{}", file_name, format))
+            }
+        }
+        _ => Err(Error::new(ErrorKind::Other, "Unsupported format")),
     }
-
-    image_params.x_pos = 500;
-    image_params.y_pos = 200;
-    image_params.width = 1000;
-    image_params.height = 500;
-
-    let cropped_image = crop_image(&screen, &image_params);
-    if format == "gif" {
-        save_gif(&cropped_image, &format!("screenshot_2.{}", format))?;
-    } else {
-        save_image(&cropped_image, &format!("screenshot_2.{}", format))?;
-    }
-
-    Ok(())
 }
 
 fn save_image(image: &image::ImageBuffer<Rgba<u8>, Vec<u8>>, path: &str) -> Result<(), Error> {
