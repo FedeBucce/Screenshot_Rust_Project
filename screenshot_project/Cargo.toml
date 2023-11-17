@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-scrap = "0.5.0"
 image = "0.24.7"
 imageproc = "0.23.0"
+screenshots = "0.8.5"
