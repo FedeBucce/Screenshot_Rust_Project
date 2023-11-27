@@ -9,7 +9,6 @@ use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::convert::TryInto;
-use std::thread::sleep;
 use std::time::Duration;
 use gif::{Encoder, Frame};
 use hotkey::modifiers;
