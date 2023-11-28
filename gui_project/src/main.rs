@@ -1,6 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::egui;
 use::egui::{TextureHandle, ColorImage};
 use std::sync::Arc;
 use screenshots::Screen;
@@ -44,6 +43,8 @@ struct MyApp {
     // screenshot: ImageBuffer<Rgba<u8>, Vec<u8>>
     texture: Option<TextureHandle>,
     screenshot: Option<Arc<ColorImage>>,
+    show_main_screen: bool,
+    show_capture_screen: bool
 }
 
 impl Default for MyApp {
@@ -51,7 +52,9 @@ impl Default for MyApp {
         Self {
             screens: Screen::all().unwrap(),
             texture: None,
-            screenshot: None
+            screenshot: None,
+            show_main_screen: true,
+            show_capture_screen: false
         }
     }
 }
@@ -60,10 +63,10 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
 
-            if let Some(screenshot) = self.screenshot.take() {
+            if let Some(screenshot) = self.screenshot.as_ref() {
                 self.texture = Some(ui.ctx().load_texture(
                     "screenshot",
-                    screenshot,
+                    screenshot.clone(),
                     Default::default(),
                 ));
             }
@@ -71,17 +74,12 @@ impl eframe::App for MyApp {
             // ui.heading("My egui Application");
             ui.horizontal(|ui| {
                 if ui.button("+ New capture").clicked() {
-                    let choice = 0;
-                    let screen = choose_screen(&self.screens, choice);
-                    let shot = capture_full_screen(&screen).unwrap();
-                    let raw_data: &[u8] = &shot.as_raw();
-                    let color_image = ColorImage::from_rgba_unmultiplied([shot.width() as usize, shot.height() as usize], raw_data);
-                    self.screenshot = Option::from(Arc::new(color_image));
+                    self.show_capture_screen = true;
+                    self.show_main_screen = false;
                 }
 
                 if ui.button("Save").clicked() {
-                    if let Some(screenshot) = self.screenshot.take() {
-                        println!("HERE");
+                    if let Some(screenshot) = self.screenshot.as_ref() {
                         let raw_data = screenshot.as_raw();
                         let image_buffer = RgbaImage::from_raw(screenshot.width() as u32, screenshot.height() as u32, Vec::from(raw_data));
                         let format: &str = "png";
@@ -98,8 +96,42 @@ impl eframe::App for MyApp {
                 ui.spinner();
             }
 
-
-               
         });
+        
+
+
+        if self.show_capture_screen {
+            ctx.show_viewport_immediate(
+                egui::ViewportId::from_hash_of("capture"),
+                egui::ViewportBuilder::default()
+                    .with_title("Capture")
+                    .with_inner_size([200.0, 100.0]),
+                |ctx, class| {
+                    assert!(
+                        class == egui::ViewportClass::Immediate,
+                        "This egui backend doesn't support multiple viewports"
+                    );
+
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        if ui.button("Capture").clicked() {
+                            let choice = 0;
+                            let screen = choose_screen(&self.screens, choice);
+                            let shot = capture_full_screen(&screen).unwrap();
+                            let raw_data: &[u8] = &shot.as_raw();
+                            let color_image = ColorImage::from_rgba_unmultiplied([shot.width() as usize, shot.height() as usize], raw_data);
+                            self.screenshot = Option::from(Arc::new(color_image));
+                            self.show_capture_screen = false;
+                            self.show_main_screen = true;
+                        }
+                    });
+
+                    if ctx.input(|i| i.viewport().close_requested()) {
+                        // Tell parent viewport that we should not show next frame:
+                        self.show_capture_screen = false;
+                        self.show_main_screen = true;
+                    }
+                },
+            );
+        }
     }
 }
