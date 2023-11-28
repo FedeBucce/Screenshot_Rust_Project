@@ -11,9 +11,8 @@ use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::convert::TryInto;
-use std::time::Duration;
 use gif::{Encoder, Frame};
-use hotkey::modifiers;
+
 
 pub struct ImageParams {
     pub x_pos: i32,
