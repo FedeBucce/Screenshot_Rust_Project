@@ -21,6 +21,16 @@ pub struct ImageParams {
     pub height: u32,
 }
 
+pub fn choose_screen(screens: &Vec<Screen>, choice: usize) -> &Screen {
+    match screens.get(choice) {
+        Some(selected_screen) => selected_screen,
+        None => {
+            eprintln!("Invalid screen choice");
+            panic!("Invalid screen choice");
+        }
+    }
+}
+
 pub fn capture_full_screen(screen: &Screen) -> Result<image::ImageBuffer<Rgba<u8>, Vec<u8>>, Error> {
     let image = screen.capture().unwrap();
     Ok(image)

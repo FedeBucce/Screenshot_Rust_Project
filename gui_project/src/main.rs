@@ -25,23 +25,10 @@ fn main() -> Result<(), eframe::Error> {
         "Screen capture",
         options,
         Box::new(|cc| {
-            // This gives us image support:
-            egui_extras::install_image_loaders(&cc.egui_ctx);
+            // egui_extras::install_image_loaders(&cc.egui_ctx);
             Box::<MyApp>::default()
         }),
     )
-
-
-}
-
-fn choose_screen(screens: &Vec<Screen>, choice: usize) -> &Screen {
-    match screens.get(choice) {
-        Some(selected_screen) => selected_screen,
-        None => {
-            eprintln!("Invalid screen choice");
-            panic!("Invalid screen choice");
-        }
-    }
 }
 
 
@@ -50,8 +37,19 @@ struct MyApp {
     texture: Option<TextureHandle>,
     screenshot: Option<Arc<ColorImage>>,
     show_main_screen: bool,
-    show_capture_screen: bool,
-    take_screenshot: bool
+    show_capture_screen: bool
+}
+
+impl MyApp {
+    fn take_screenshot(&mut self) {
+        let choice = 0;
+        let screen = choose_screen(&self.screens, choice);
+        let shot = capture_full_screen(&screen).unwrap();
+        let raw_data: &[u8] = &shot.as_raw();
+        let color_image = ColorImage::from_rgba_unmultiplied([shot.width() as usize, shot.height() as usize], raw_data);
+        self.screenshot = Option::from(Arc::new(color_image));
+        self.show_main_screen = true;
+    }
 }
 
 impl Default for MyApp {
@@ -61,8 +59,7 @@ impl Default for MyApp {
             texture: None,
             screenshot: None,
             show_main_screen: true,
-            show_capture_screen: false,
-            take_screenshot: false
+            show_capture_screen: false
         }
     }
 }
@@ -82,10 +79,12 @@ impl eframe::App for MyApp {
             outer_margin: 0.5.into(),
             ..Default::default()
         };
-    
+        
         if self.show_main_screen {
+            // Define main window central panel
             egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
     
+                // Retrieve screenshot if taken
                 if let Some(screenshot) = self.screenshot.as_ref() {
                     self.texture = Some(ui.ctx().load_texture(
                         "screenshot",
@@ -94,30 +93,23 @@ impl eframe::App for MyApp {
                     ));
                 }
     
-    
                 let app_rect = ui.max_rect();
+
+                // Define title bar                
+                let mut title_bar_rect = app_rect;
+                title_bar_rect.max.y = title_bar_rect.min.y + 32.0;
+                title_bar_ui(ui, title_bar_rect, "Screen capture");
+
+
     
-                let title_bar_height = 32.0;
-                let title_bar_rect = {
-                    let mut rect = app_rect;
-                    rect.max.y = rect.min.y + title_bar_height;
-                    rect
-                };
-    
-                let title = "Screen capture";
-                title_bar_ui(ui, title_bar_rect, title);
-    
-                // Add the contents:
-                let content_rect = {
-                    let mut rect = app_rect;
-                    rect.min.y = title_bar_rect.max.y;
-                    rect
-                }
-                .shrink(8.0);
+                // Define content_ui as ui child containing buttons and image
+                let mut content_rect = app_rect;
+                content_rect.min.y = title_bar_rect.max.y;
+                content_rect = content_rect.shrink(8.0);
+
                 let mut content_ui = ui.child_ui(content_rect, *ui.layout());
                 
-    
-                // ui.heading("My egui Application");
+                // Define New capture button and Save button aligned horizontally
                 content_ui.horizontal(|ui| {
                     if ui.button("+ New capture").clicked() {
                         self.show_capture_screen = true;
@@ -136,15 +128,15 @@ impl eframe::App for MyApp {
                     }
                 });
     
-                let content_rect = content_ui.max_rect();
-                let image_rect = {
-                    let mut rect = content_rect;
-                    rect.min.y = content_rect.min.y + 10.0;
-                    rect
-                }.shrink(20.0);
+
+                // Define image_ui as content_ui child containing the image and with centered and justified layout
+                let mut image_rect = content_rect;
+                image_rect.min.y = content_rect.min.y + 10.0;
+                image_rect = image_rect.shrink(20.0);
                 let mut image_ui = content_ui.child_ui(image_rect, egui::Layout::centered_and_justified(egui::Direction::TopDown));
     
-    
+
+                // Show image if taken holding real aspect_ratio or show a spinner
                 if let Some(texture) = self.texture.as_ref() {
                     let available_size = image_ui.available_size();
                     let aspect_ratio = texture.aspect_ratio();
@@ -155,6 +147,7 @@ impl eframe::App for MyApp {
                         size = available_size;
                         size.y = size.x / aspect_ratio;
                     }
+
                     image_ui.image((texture.id(), size));
                 } else {
                     image_ui.add(Spinner::new().size(40.0));
@@ -164,6 +157,7 @@ impl eframe::App for MyApp {
         }
 
         else if self.show_capture_screen {
+            // Define capture window
             ctx.show_viewport_immediate(
                 egui::ViewportId::from_hash_of("capture"),
                 egui::ViewportBuilder::default()
@@ -172,93 +166,65 @@ impl eframe::App for MyApp {
                     .with_inner_size([200.0, 100.0])
                     .with_min_inner_size([200.0, 100.0]),
                 |ctx, class| {
-                    assert!(
-                        class == egui::ViewportClass::Immediate,
-                        "This egui backend doesn't support multiple viewports"
-                    );
 
-                    
-                    let panel_frame = egui::Frame {
-                        fill: ctx.style().visuals.window_fill(),
-                        rounding: 10.0.into(),
-                        stroke: ctx.style().visuals.widgets.noninteractive.fg_stroke,
-                        outer_margin: 0.5.into(),
-                        ..Default::default()
-                    };
-
-
+                    // Define capture window central panel
                     egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
                         let app_rect = ui.max_rect();
 
-                        let title_bar_height = 32.0;
-                        let title_bar_rect = {
-                            let mut rect = app_rect;
-                            rect.max.y = rect.min.y + title_bar_height;
-                            rect
-                        };
+                        // Define title bar
+                        let mut title_bar_rect = app_rect;
+                        title_bar_rect.max.y = app_rect.min.y + 32.0;
+                        title_bar_ui(ui, title_bar_rect, "Screen capture");
 
-                        let title = "Screen capture";
-                        title_bar_ui(ui, title_bar_rect, title);
 
-                        // Add the contents:
-                        let content_rect = {
-                            let mut rect = app_rect;
-                            rect.min.y = title_bar_rect.max.y;
-                            rect
-                        }
-                        .shrink(8.0);
-                        let mut content_ui = ui.child_ui(content_rect, egui::Layout::centered_and_justified(egui::Direction::TopDown));
+                        // Define content_ui as ui child capture button with centered layout
+                        let mut content_rect = app_rect;
+                        content_rect.min.y = title_bar_rect.max.y;
+                        content_rect = content_rect.shrink(8.0);
+                        let content_ui = ui.child_ui(content_rect, egui::Layout::centered_and_justified(egui::Direction::TopDown));
                         
-
-                        let center = content_ui.max_rect().center();
-                        let radius: f32 = 36.0;
-                        let fill = Color32::WHITE;
-                        let stroke = Stroke::default();
-
-                        let circle_shape = egui::epaint::CircleShape { center, radius, fill, stroke};
+                        // Define capture button
+                        let circle_shape = egui::epaint::CircleShape {
+                            center: content_ui.max_rect().center(),
+                            radius: 36.0,
+                            fill: Color32::WHITE,
+                            stroke: Stroke::default()
+                        };
                         content_ui.painter().add(Shape::Circle(circle_shape));
 
-
-                        let center = content_ui.max_rect().center();
-                        let radius: f32 = 32.0;
-                        let fill = Color32::default();
-                        let width = 4.0;
-                        let stroke = Stroke::new(width, Color32::BLACK);
-
-                        let circle_shape = egui::epaint::CircleShape { center, radius, fill, stroke};
+                        let circle_shape = egui::epaint::CircleShape {
+                            center: content_ui.max_rect().center(),
+                            radius: 32.0,
+                            fill: Color32::WHITE,
+                            stroke: Stroke::new(4.0, Color32::BLACK)
+                        };
                         content_ui.painter().add(Shape::Circle(circle_shape));
 
+                        // Define button click interaction
                         let interaction_rect = circle_shape.visual_bounding_rect();
-
                         let button_response = ui.interact(interaction_rect, egui::Id::new("button"), egui::Sense::click());
                         
                         if button_response.clicked() {
                             self.show_capture_screen = false;
-                            self.take_screenshot = true;
+                            self.show_main_screen = true;
+                            // ui.set_visible(false); // Not running
+                            self.take_screenshot();
                         }
 
                     });
 
                     if ctx.input(|i| i.viewport().close_requested()) {
-                        // Tell parent viewport that we should not show next frame:
+                        // Close if x pressed
                         self.show_capture_screen = false;
                         self.show_main_screen = true;
                     }
                 },
             );
         }
-        else if self.take_screenshot {
-            let choice = 0;
-            let screen = choose_screen(&self.screens, choice);
-            let shot = capture_full_screen(&screen).unwrap();
-            let raw_data: &[u8] = &shot.as_raw();
-            let color_image = ColorImage::from_rgba_unmultiplied([shot.width() as usize, shot.height() as usize], raw_data);
-            self.screenshot = Option::from(Arc::new(color_image));
-            self.show_main_screen = true;
-            self.take_screenshot = false;        
-        }
+    
     }
 }
+
 
 
 
@@ -279,15 +245,6 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
         ui.style().visuals.text_color(),
     );
 
-    // Paint the line under the title:
-    // painter.line_segment(
-    //     [
-    //         title_bar_rect.left_bottom() + vec2(1.0, 0.0),
-    //         title_bar_rect.right_bottom() + vec2(-1.0, 0.0),
-    //     ],
-    //     ui.visuals().widgets.noninteractive.bg_stroke,
-    // );
-
     // Interact with the title bar (drag to move window):
     if title_bar_response.is_pointer_button_down_on() {
         ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
@@ -304,6 +261,9 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
 }
 
 
+
+
+
 fn close_maximize_minimize(ui: &mut egui::Ui) {
     use egui::{Button, RichText};
 
@@ -315,24 +275,6 @@ fn close_maximize_minimize(ui: &mut egui::Ui) {
     if close_response.clicked() {
         ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
     }
-
-    // let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
-    // if is_maximized {
-    //     let maximized_response = ui
-    //         .add(Button::new(RichText::new("🗗").size(button_height)))
-    //         .on_hover_text("Restore window");
-    //     if maximized_response.clicked() {
-    //         ui.ctx()
-    //             .send_viewport_cmd(ViewportCommand::Maximized(false));
-    //     }
-    // } else {
-    //     let maximized_response = ui
-    //         .add(Button::new(RichText::new("🗗").size(button_height)))
-    //         .on_hover_text("Maximize window");
-    //     if maximized_response.clicked() {
-    //         ui.ctx().send_viewport_cmd(ViewportCommand::Maximized(true));
-    //     }
-    // }
 
     let minimized_response = ui
         .add(Button::new(RichText::new("🗕").size(button_height)))
