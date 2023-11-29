@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use egui::{Spinner, Shape, Pos2, Color32, Stroke};
 use::egui::{TextureHandle, ColorImage};
 use eframe::egui::ViewportCommand;
 use std::sync::Arc;
@@ -49,7 +50,8 @@ struct MyApp {
     texture: Option<TextureHandle>,
     screenshot: Option<Arc<ColorImage>>,
     show_main_screen: bool,
-    show_capture_screen: bool
+    show_capture_screen: bool,
+    take_screenshot: bool
 }
 
 impl Default for MyApp {
@@ -59,7 +61,8 @@ impl Default for MyApp {
             texture: None,
             screenshot: None,
             show_main_screen: true,
-            show_capture_screen: false
+            show_capture_screen: false,
+            take_screenshot: false
         }
     }
 }
@@ -80,92 +83,87 @@ impl eframe::App for MyApp {
             ..Default::default()
         };
     
-        egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
-
-            if let Some(screenshot) = self.screenshot.as_ref() {
-                self.texture = Some(ui.ctx().load_texture(
-                    "screenshot",
-                    screenshot.clone(),
-                    Default::default(),
-                ));
-            }
-
-
-
-
-
-            let app_rect = ui.max_rect();
-
-            let title_bar_height = 32.0;
-            let title_bar_rect = {
-                let mut rect = app_rect;
-                rect.max.y = rect.min.y + title_bar_height;
-                rect
-            };
-
-            let title = "Screen capture";
-            title_bar_ui(ui, title_bar_rect, title);
-
-            // Add the contents:
-            let content_rect = {
-                let mut rect = app_rect;
-                rect.min.y = title_bar_rect.max.y;
-                rect
-            }
-            .shrink(8.0);
-            let mut content_ui = ui.child_ui(content_rect, *ui.layout());
-
-
-            
-
-            // ui.heading("My egui Application");
-            content_ui.horizontal(|ui| {
-                if ui.button("+ New capture").clicked() {
-                    self.show_capture_screen = true;
+        if self.show_main_screen {
+            egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
+    
+                if let Some(screenshot) = self.screenshot.as_ref() {
+                    self.texture = Some(ui.ctx().load_texture(
+                        "screenshot",
+                        screenshot.clone(),
+                        Default::default(),
+                    ));
                 }
-
-                if ui.button("Save").clicked() {
-                    if let Some(screenshot) = self.screenshot.as_ref() {
-                        let raw_data = screenshot.as_raw();
-                        let image_buffer = RgbaImage::from_raw(screenshot.width() as u32, screenshot.height() as u32, Vec::from(raw_data));
-                        let format: &str = "png";
-                        if let Some(img_buffer) = image_buffer.as_ref(){
-                            save_image_or_gif(img_buffer, format, "screen").ok();
+    
+    
+                let app_rect = ui.max_rect();
+    
+                let title_bar_height = 32.0;
+                let title_bar_rect = {
+                    let mut rect = app_rect;
+                    rect.max.y = rect.min.y + title_bar_height;
+                    rect
+                };
+    
+                let title = "Screen capture";
+                title_bar_ui(ui, title_bar_rect, title);
+    
+                // Add the contents:
+                let content_rect = {
+                    let mut rect = app_rect;
+                    rect.min.y = title_bar_rect.max.y;
+                    rect
+                }
+                .shrink(8.0);
+                let mut content_ui = ui.child_ui(content_rect, *ui.layout());
+                
+    
+                // ui.heading("My egui Application");
+                content_ui.horizontal(|ui| {
+                    if ui.button("+ New capture").clicked() {
+                        self.show_capture_screen = true;
+                        self.show_main_screen = false;
+                    }
+    
+                    if ui.button("Save").clicked() {
+                        if let Some(screenshot) = self.screenshot.as_ref() {
+                            let raw_data = screenshot.as_raw();
+                            let image_buffer = RgbaImage::from_raw(screenshot.width() as u32, screenshot.height() as u32, Vec::from(raw_data));
+                            let format: &str = "png";
+                            if let Some(img_buffer) = image_buffer.as_ref(){
+                                save_image_or_gif(img_buffer, format, "screen").ok();
+                            }
                         }
                     }
+                });
+    
+                let content_rect = content_ui.max_rect();
+                let image_rect = {
+                    let mut rect = content_rect;
+                    rect.min.y = content_rect.min.y + 10.0;
+                    rect
+                }.shrink(20.0);
+                let mut image_ui = content_ui.child_ui(image_rect, egui::Layout::centered_and_justified(egui::Direction::TopDown));
+    
+    
+                if let Some(texture) = self.texture.as_ref() {
+                    let available_size = image_ui.available_size();
+                    let aspect_ratio = texture.aspect_ratio();
+                    let mut size = available_size;
+                    size.x = size.y * aspect_ratio;
+    
+                    if size.x > available_size.x || size.y > available_size.y {
+                        size = available_size;
+                        size.y = size.x / aspect_ratio;
+                    }
+                    image_ui.image((texture.id(), size));
+                } else {
+                    image_ui.add(Spinner::new().size(40.0));
                 }
+    
             });
+        }
 
-            let content_rect = content_ui.max_rect();
-            let image_rect = {
-                let mut rect = content_rect;
-                rect.min.y = content_rect.min.y + 10.0;
-                rect
-            }.shrink(20.0);
-            let mut image_ui = content_ui.child_ui(image_rect, egui::Layout::centered_and_justified(egui::Direction::TopDown));
-
-
-            if let Some(texture) = self.texture.as_ref() {
-                let available_size = image_ui.available_size();
-                let aspect_ratio = texture.aspect_ratio();
-                let mut size = available_size;
-                size.x = size.y * aspect_ratio;
-
-                if size.x > available_size.x || size.y > available_size.y {
-                    size = available_size;
-                    size.y = size.x / aspect_ratio;
-                }
-                image_ui.image((texture.id(), size));
-            } else {
-                image_ui.spinner();
-            }
-
-        });
-
-
-
-        if self.show_capture_screen {
-            self.show_main_screen = false;
+        else if self.show_capture_screen {
             ctx.show_viewport_immediate(
                 egui::ViewportId::from_hash_of("capture"),
                 egui::ViewportBuilder::default()
@@ -178,7 +176,6 @@ impl eframe::App for MyApp {
                         class == egui::ViewportClass::Immediate,
                         "This egui backend doesn't support multiple viewports"
                     );
-
 
                     
                     let panel_frame = egui::Frame {
@@ -210,18 +207,36 @@ impl eframe::App for MyApp {
                             rect
                         }
                         .shrink(8.0);
-                        let mut content_ui = ui.child_ui(content_rect, *ui.layout());
+                        let mut content_ui = ui.child_ui(content_rect, egui::Layout::centered_and_justified(egui::Direction::TopDown));
                         
-                        if content_ui.button("Capture").clicked() {
-                            let choice = 0;
-                            let screen = choose_screen(&self.screens, choice);
-                            let shot = capture_full_screen(&screen).unwrap();
-                            let raw_data: &[u8] = &shot.as_raw();
-                            let color_image = ColorImage::from_rgba_unmultiplied([shot.width() as usize, shot.height() as usize], raw_data);
-                            self.screenshot = Option::from(Arc::new(color_image));
+
+                        let center = content_ui.max_rect().center();
+                        let radius: f32 = 36.0;
+                        let fill = Color32::WHITE;
+                        let stroke = Stroke::default();
+
+                        let circle_shape = egui::epaint::CircleShape { center, radius, fill, stroke};
+                        content_ui.painter().add(Shape::Circle(circle_shape));
+
+
+                        let center = content_ui.max_rect().center();
+                        let radius: f32 = 32.0;
+                        let fill = Color32::default();
+                        let width = 4.0;
+                        let stroke = Stroke::new(width, Color32::BLACK);
+
+                        let circle_shape = egui::epaint::CircleShape { center, radius, fill, stroke};
+                        content_ui.painter().add(Shape::Circle(circle_shape));
+
+                        let interaction_rect = circle_shape.visual_bounding_rect();
+
+                        let button_response = ui.interact(interaction_rect, egui::Id::new("button"), egui::Sense::click());
+                        
+                        if button_response.clicked() {
                             self.show_capture_screen = false;
-                            self.show_main_screen = true;
+                            self.take_screenshot = true;
                         }
+
                     });
 
                     if ctx.input(|i| i.viewport().close_requested()) {
@@ -231,6 +246,16 @@ impl eframe::App for MyApp {
                     }
                 },
             );
+        }
+        else if self.take_screenshot {
+            let choice = 0;
+            let screen = choose_screen(&self.screens, choice);
+            let shot = capture_full_screen(&screen).unwrap();
+            let raw_data: &[u8] = &shot.as_raw();
+            let color_image = ColorImage::from_rgba_unmultiplied([shot.width() as usize, shot.height() as usize], raw_data);
+            self.screenshot = Option::from(Arc::new(color_image));
+            self.show_main_screen = true;
+            self.take_screenshot = false;        
         }
     }
 }
