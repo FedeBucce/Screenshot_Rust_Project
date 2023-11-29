@@ -136,10 +136,28 @@ impl eframe::App for MyApp {
                 }
             });
 
+            let content_rect = content_ui.max_rect();
+            let image_rect = {
+                let mut rect = content_rect;
+                rect.min.y = content_rect.min.y + 10.0;
+                rect
+            }.shrink(20.0);
+            let mut image_ui = content_ui.child_ui(image_rect, egui::Layout::centered_and_justified(egui::Direction::TopDown));
+
+
             if let Some(texture) = self.texture.as_ref() {
-                content_ui.image((texture.id(), ui.available_size()));
+                let available_size = image_ui.available_size();
+                let aspect_ratio = texture.aspect_ratio();
+                let mut size = available_size;
+                size.x = size.y * aspect_ratio;
+
+                if size.x > available_size.x || size.y > available_size.y {
+                    size = available_size;
+                    size.y = size.x / aspect_ratio;
+                }
+                image_ui.image((texture.id(), size));
             } else {
-                content_ui.spinner();
+                image_ui.spinner();
             }
 
         });
@@ -260,7 +278,7 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
     });
 }
 
-/// Show some close/maximize/minimize buttons for the native window.
+
 fn close_maximize_minimize(ui: &mut egui::Ui) {
     use egui::{Button, RichText};
 
