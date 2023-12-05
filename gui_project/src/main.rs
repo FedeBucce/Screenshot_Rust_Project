@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use egui::{Spinner, Shape, Pos2, Color32, Stroke};
+use egui::{Spinner, Shape, Pos2, Color32, Stroke,Grid};
 use::egui::{TextureHandle, ColorImage};
 use eframe::egui::ViewportCommand;
 use std::sync::Arc;
@@ -9,6 +9,10 @@ use image::RgbaImage;
 
 mod screenshot_module;
 use screenshot_module::*;
+
+mod hotkeys;
+
+use hotkeys::show_hotkeys_ui;
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -30,6 +34,13 @@ fn main() -> Result<(), eframe::Error> {
         }),
     )
 }
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+enum Enum {
+    First,
+    Second,
+    Third,
+}
 
 
 struct MyApp {
@@ -37,8 +48,12 @@ struct MyApp {
     texture: Option<TextureHandle>,
     screenshot: Option<Arc<ColorImage>>,
     show_main_screen: bool,
-    show_capture_screen: bool
+    show_capture_screen: bool,
+    show_options: bool,
+    show_hotkeys: bool
+   
 }
+
 
 impl MyApp {
     fn take_screenshot(&mut self) {
@@ -59,7 +74,11 @@ impl Default for MyApp {
             texture: None,
             screenshot: None,
             show_main_screen: true,
-            show_capture_screen: false
+            show_capture_screen: false,
+            show_options: false,
+            show_hotkeys: false
+            
+
         }
     }
 }
@@ -114,8 +133,16 @@ impl eframe::App for MyApp {
                     if ui.button("+ New capture").clicked() {
                         self.show_capture_screen = true;
                         self.show_main_screen = false;
+                       
                     }
-    
+
+                    if ui.button("⚙").clicked() {
+                        self.show_options=true;
+                        self.show_main_screen = false;
+                        
+                       
+
+                    }
                     if ui.button("Save").clicked() {
                         if let Some(screenshot) = self.screenshot.as_ref() {
                             let raw_data = screenshot.as_raw();
@@ -156,7 +183,7 @@ impl eframe::App for MyApp {
             });
         }
 
-        else if self.show_capture_screen {
+        if self.show_capture_screen {
             // Define capture window
             ctx.show_viewport_immediate(
                 egui::ViewportId::from_hash_of("capture"),
@@ -221,15 +248,164 @@ impl eframe::App for MyApp {
                 },
             );
         }
+
+    //     if self.show_options {
+    //         // Define capture window
+    //         ctx.show_viewport_immediate(
+    //             egui::ViewportId::from_hash_of("capture"),
+    //             egui::ViewportBuilder::default()
+    //                 .with_transparent(true)
+    //                 .with_decorations(false)
+    //                 .with_inner_size([200.0, 100.0])
+    //                 .with_min_inner_size([200.0, 100.0]),
+    //             |ctx, class| {
+
+    //                 // Define capture window central panel
+    //                 egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
+    //                     let app_rect = ui.max_rect();
+
+    //                     // Define title bar
+    //                     let mut title_bar_rect = app_rect;
+    //                     title_bar_rect.max.y = app_rect.min.y + 32.0;
+    //                     title_bar_ui(ui, title_bar_rect, "Screen capture");
+    //                     Grid::new("settings_grid")
+    //                     .num_columns(2)
+    //                     .spacing([40.0, 4.0])
+    //                     .striped(false)
+    //                     .show(ui, |ui| {
+    //                     ui.label("Change Hot Key");
+    //                     ui.end_row();
+    //                     ui.label("Path");
+    //                     ui.end_row();
+    //                     ui.label("Save");
+    //                     ui.end_row();
+    //                     ui.label("Default Hot Key");
+                        
+
+
+
+    //                     });
+
+
+    //                 if ctx.input(|i| i.viewport().close_requested()) {
+    //                     // Close if x pressed
+    //                     self.show_options = false;
+    //                     self.show_main_screen = true;
+    //                 }
+    //             },
+    //         );
+    //     })
+    //  }
     
+     if self.show_options {
+        // Define capture window
+       // Define main window central panel
+       egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
+    
+        // Retrieve screenshot if taken
+        if let Some(screenshot) = self.screenshot.as_ref() {
+            self.texture = Some(ui.ctx().load_texture(
+                "screenshot",
+                screenshot.clone(),
+                Default::default(),
+            ));
+        }
+
+        let app_rect = ui.max_rect();
+
+        // Define title bar                
+        let mut title_bar_rect = app_rect;
+        title_bar_rect.max.y = title_bar_rect.min.y + 32.0;
+        title_bar_ui(ui, title_bar_rect, "Screen capture");
+
+
+
+        // Define content_ui as ui child containing buttons and image
+        let mut content_rect = app_rect;
+        content_rect.min.y = title_bar_rect.max.y;
+        content_rect = content_rect.shrink(8.0);
+
+        let mut content_ui = ui.child_ui(content_rect, *ui.layout());
+        
+        // Define New capture button and Save button aligned horizontally
+       Grid::new("settings_grid")
+                   .num_columns(2)
+                    .spacing([40.0, 4.0])
+                     .striped(false)
+                       .show(ui, |ui| { 
+            let modificatore_screenshot: &str="FN";
+            let tasto_screenshot="D";
+            ui.label(format!("Take Screenshot: {} + {}",modificatore_screenshot, tasto_screenshot));
+
+            let modificatore_save: &str="FN";
+            let tasto_save="X";
+            ui.label(format!("Save Screenshot: {} + {}",modificatore_save, tasto_save));
+
+            if ui.button("Change Hotkeys").clicked() {
+                self.show_options = false;
+                self.show_hotkeys=true;
+               
+            }
+            ui.end_row();
+            
+            if ui.button("Change Path").clicked() {
+                self.show_options=true;
+                self.show_main_screen = false;
+                
+               
+
+            }
+            ui.end_row();
+            if ui.button("Change Format").clicked() {
+                if let Some(screenshot) = self.screenshot.as_ref() {
+                    let raw_data = screenshot.as_raw();
+                    let image_buffer = RgbaImage::from_raw(screenshot.width() as u32, screenshot.height() as u32, Vec::from(raw_data));
+                    let format: &str = "png";
+                    if let Some(img_buffer) = image_buffer.as_ref(){
+                        save_image_or_gif(img_buffer, format, "screen").ok();
+                    }
+                }
+            }
+        });
+
+
+        // Define image_ui as content_ui child containing the image and with centered and justified layout
+        let mut image_rect = content_rect;
+        image_rect.min.y = content_rect.min.y + 10.0;
+        image_rect = image_rect.shrink(20.0);
+        let mut image_ui = content_ui.child_ui(image_rect, egui::Layout::centered_and_justified(egui::Direction::TopDown));
+
+
+        // Show image if taken holding real aspect_ratio or show a spinner
+        if let Some(texture) = self.texture.as_ref() {
+            let available_size = image_ui.available_size();
+            let aspect_ratio = texture.aspect_ratio();
+            let mut size = available_size;
+            size.x = size.y * aspect_ratio;
+
+            if size.x > available_size.x || size.y > available_size.y {
+                size = available_size;
+                size.y = size.x / aspect_ratio;
+            }
+
+            image_ui.image((texture.id(), size));
+        } else {
+            image_ui.add(Spinner::new().size(40.0));
+        }
+
+    });}
+  if self.show_hotkeys{
+     
+    show_hotkeys_ui(ctx,panel_frame);    
+} }
     }
-}
 
 
 
 
 
-fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: &str) {
+
+pub fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: &str) {
     use egui::*;
 
     let painter = ui.painter();
@@ -259,9 +435,6 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
         });
     });
 }
-
-
-
 
 
 fn close_maximize_minimize(ui: &mut egui::Ui) {
