@@ -11,20 +11,30 @@ mod screenshot_module;
 use screenshot_module::*;
 
 mod hotkeys;
-
 use hotkeys::show_hotkeys_ui;
-
+mod options;
+use options::show_options_ui;
+mod path;
+use path::show_path_ui;
+mod credit;
+use credit::show_credit_ui;
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     
     let options = eframe::NativeOptions {
+        
         viewport: egui::ViewportBuilder::default()
         .with_transparent(true)
         .with_decorations(false)
-        .with_inner_size([450.0, 300.0])
+        .with_inner_size([450.0, 400.0])
         .with_min_inner_size([450.0, 300.0]),
+        
+        
         ..Default::default()
     };
+
+  
+
     eframe::run_native(
         "Screen capture",
         options,
@@ -43,14 +53,22 @@ enum Enum {
 }
 
 
-struct MyApp {
+pub struct MyApp {
     screens: Vec<Screen>,
     texture: Option<TextureHandle>,
     screenshot: Option<Arc<ColorImage>>,
     show_main_screen: bool,
     show_capture_screen: bool,
     show_options: bool,
-    show_hotkeys: bool
+    show_hotkeys: bool,
+    show_path: bool,
+    show_credit: bool,
+    modifier_save_tmp: String,
+    code_save_tmp: String,
+    code_sh_tmp: String,
+    modifier_sh_tmp: String,
+    format_tmp: String,
+
    
 }
 
@@ -64,6 +82,8 @@ impl MyApp {
         let color_image = ColorImage::from_rgba_unmultiplied([shot.width() as usize, shot.height() as usize], raw_data);
         self.screenshot = Option::from(Arc::new(color_image));
         self.show_main_screen = true;
+        
+
     }
 }
 
@@ -76,7 +96,16 @@ impl Default for MyApp {
             show_main_screen: true,
             show_capture_screen: false,
             show_options: false,
-            show_hotkeys: false
+            show_hotkeys: false,
+            show_path: false,
+            show_credit: false,
+            modifier_save_tmp:  "branz".to_string(),
+            code_save_tmp: "bratz".to_string(),
+            code_sh_tmp:  "bratza".to_string(),
+            modifier_sh_tmp: "bratza".to_string(),
+            format_tmp: "JPG".to_string()
+
+
             
 
         }
@@ -117,7 +146,7 @@ impl eframe::App for MyApp {
                 // Define title bar                
                 let mut title_bar_rect = app_rect;
                 title_bar_rect.max.y = title_bar_rect.min.y + 32.0;
-                title_bar_ui(ui, title_bar_rect, "Screen capture");
+                title_bar_ui(self,ui, title_bar_rect, "Screen capture");
 
 
     
@@ -201,7 +230,7 @@ impl eframe::App for MyApp {
                         // Define title bar
                         let mut title_bar_rect = app_rect;
                         title_bar_rect.max.y = app_rect.min.y + 32.0;
-                        title_bar_ui(ui, title_bar_rect, "Screen capture");
+                        title_bar_ui(self,ui, title_bar_rect, "Screen capture");
 
 
                         // Define content_ui as ui child capture button with centered layout
@@ -298,106 +327,18 @@ impl eframe::App for MyApp {
     //  }
     
      if self.show_options {
-        // Define capture window
-       // Define main window central panel
-       egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
-    
-        // Retrieve screenshot if taken
-        if let Some(screenshot) = self.screenshot.as_ref() {
-            self.texture = Some(ui.ctx().load_texture(
-                "screenshot",
-                screenshot.clone(),
-                Default::default(),
-            ));
-        }
-
-        let app_rect = ui.max_rect();
-
-        // Define title bar                
-        let mut title_bar_rect = app_rect;
-        title_bar_rect.max.y = title_bar_rect.min.y + 32.0;
-        title_bar_ui(ui, title_bar_rect, "Screen capture");
-
-
-
-        // Define content_ui as ui child containing buttons and image
-        let mut content_rect = app_rect;
-        content_rect.min.y = title_bar_rect.max.y;
-        content_rect = content_rect.shrink(8.0);
-
-        let mut content_ui = ui.child_ui(content_rect, *ui.layout());
-        
-        // Define New capture button and Save button aligned horizontally
-       Grid::new("settings_grid")
-                   .num_columns(2)
-                    .spacing([40.0, 4.0])
-                     .striped(false)
-                       .show(ui, |ui| { 
-            let modificatore_screenshot: &str="FN";
-            let tasto_screenshot="D";
-            ui.label(format!("Take Screenshot: {} + {}",modificatore_screenshot, tasto_screenshot));
-
-            let modificatore_save: &str="FN";
-            let tasto_save="X";
-            ui.label(format!("Save Screenshot: {} + {}",modificatore_save, tasto_save));
-
-            if ui.button("Change Hotkeys").clicked() {
-                self.show_options = false;
-                self.show_hotkeys=true;
-               
-            }
-            ui.end_row();
-            
-            if ui.button("Change Path").clicked() {
-                self.show_options=true;
-                self.show_main_screen = false;
-                
-               
-
-            }
-            ui.end_row();
-            if ui.button("Change Format").clicked() {
-                if let Some(screenshot) = self.screenshot.as_ref() {
-                    let raw_data = screenshot.as_raw();
-                    let image_buffer = RgbaImage::from_raw(screenshot.width() as u32, screenshot.height() as u32, Vec::from(raw_data));
-                    let format: &str = "png";
-                    if let Some(img_buffer) = image_buffer.as_ref(){
-                        save_image_or_gif(img_buffer, format, "screen").ok();
-                    }
-                }
-            }
-        });
-
-
-        // Define image_ui as content_ui child containing the image and with centered and justified layout
-        let mut image_rect = content_rect;
-        image_rect.min.y = content_rect.min.y + 10.0;
-        image_rect = image_rect.shrink(20.0);
-        let mut image_ui = content_ui.child_ui(image_rect, egui::Layout::centered_and_justified(egui::Direction::TopDown));
-
-
-        // Show image if taken holding real aspect_ratio or show a spinner
-        if let Some(texture) = self.texture.as_ref() {
-            let available_size = image_ui.available_size();
-            let aspect_ratio = texture.aspect_ratio();
-            let mut size = available_size;
-            size.x = size.y * aspect_ratio;
-
-            if size.x > available_size.x || size.y > available_size.y {
-                size = available_size;
-                size.y = size.x / aspect_ratio;
-            }
-
-            image_ui.image((texture.id(), size));
-        } else {
-            image_ui.add(Spinner::new().size(40.0));
-        }
-
-    });}
-  if self.show_hotkeys{
-     
-    show_hotkeys_ui(ctx,panel_frame);    
-} }
+        show_options_ui(self,ctx,panel_frame)    
+                           }
+     if self.show_hotkeys{ 
+     show_hotkeys_ui(self,ctx,panel_frame);    
+                         } 
+    if self.show_path{
+        show_path_ui(self,ctx,panel_frame);    
+    }
+    if self.show_credit{
+        show_credit_ui(self,ctx,panel_frame);
+    }
+}
     }
 
 
@@ -405,13 +346,13 @@ impl eframe::App for MyApp {
 
 
 
-pub fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: &str) {
+pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: &str) {
     use egui::*;
 
     let painter = ui.painter();
 
     let title_bar_response = ui.interact(title_bar_rect, Id::new("title_bar"), Sense::click());
-
+      
     // Paint the title:
     painter.text(
         title_bar_rect.center(),
@@ -420,6 +361,7 @@ pub fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, tit
         FontId::proportional(20.0),
         ui.style().visuals.text_color(),
     );
+   
 
     // Interact with the title bar (drag to move window):
     if title_bar_response.is_pointer_button_down_on() {
@@ -431,7 +373,44 @@ pub fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, tit
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.visuals_mut().button_frame = false;
             ui.add_space(8.0);
+          
             close_maximize_minimize(ui);
+            
+         
+            //undo_button from hotkeys
+            if(app.show_hotkeys) 
+            {
+                     if ui.button("↩").clicked() {
+                app.show_hotkeys=false;
+                app.show_options=true;
+                     }
+            
+            }    
+            else if(app.show_path)
+            {
+             if ui.button("↩").clicked() {
+                app.show_path=false;
+                app.show_options=true;
+                     }
+            
+            } 
+            else if(app.show_credit)
+            {
+             if ui.button("↩").clicked() {
+                app.show_credit=false;
+                app.show_options=true;
+                     }
+            
+            } 
+            //homepage_button
+            if ui.button("🏠").clicked() {
+                app.show_main_screen=true;
+                app.show_options=false;
+                app.show_hotkeys=false;
+                app.show_path=false;
+                app.show_credit=false;
+                
+            }
         });
     });
 }

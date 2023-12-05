@@ -5,7 +5,7 @@ use crate::MyApp;
 
 use egui::{CentralPanel, Frame, Ui,ComboBox,Layout};
 
-pub fn show_hotkeys_ui(app: &mut MyApp, ctx: &egui::Context, panel_frame:Frame) {
+pub fn show_path_ui(app: &mut MyApp, ctx: &egui::Context, panel_frame:Frame) {
 egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
     
     // Retrieve screenshot if taken
@@ -22,7 +22,7 @@ egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
     // Define title bar                
     let mut title_bar_rect = app_rect;
     title_bar_rect.max.y = title_bar_rect.min.y + 32.0;
-    super::title_bar_ui(app,ui, title_bar_rect, "Change Hotkeys");
+    super::title_bar_ui(app,ui, title_bar_rect, "Change Path");
 
    
    
