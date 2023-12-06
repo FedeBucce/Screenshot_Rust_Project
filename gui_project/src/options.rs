@@ -1,8 +1,9 @@
 use egui::Grid;
 use crate::MyApp;
 
-
+use native_dialog::FileDialog;
 use egui::{CentralPanel, Frame, Ui,Separator};
+
 
 pub fn show_options_ui(app: &mut MyApp, ctx: &egui::Context, panel_frame:Frame) {
     // Define capture window
@@ -66,16 +67,20 @@ pub fn show_options_ui(app: &mut MyApp, ctx: &egui::Context, panel_frame:Frame) 
            
             ui.label("       Path");
             if ui.button("Change Path").clicked() {
-                app.show_path=true;
-                app.show_main_screen = false;
-                
-               
-
+               let new_path = FileDialog::new()
+               .set_location(&app.path)
+               .show_open_single_dir()
+               .unwrap();
+              //Prevengo errori per path nulli
+              if(new_path.is_some()){
+             app.path=new_path.unwrap();
+              }
+              
             }
             
             ui.end_row();
-            let path=r"        :C\gui_project\src\options.rs".to_string();
-            ui.label(format!("{}",path));
+           
+            ui.label(format!("{:#?}",app.path));
             ui.end_row();
             ui.end_row();
           

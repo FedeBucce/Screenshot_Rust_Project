@@ -2,8 +2,9 @@
 
 use egui::{Spinner, Shape, Pos2, Color32, Stroke,Grid};
 use::egui::{TextureHandle, ColorImage};
+use native_dialog::{FileDialog, MessageDialog, MessageType};
 use eframe::egui::ViewportCommand;
-use std::sync::Arc;
+use std::{sync::Arc, path::PathBuf};
 use screenshots::Screen;
 use image::RgbaImage;
 
@@ -14,8 +15,6 @@ mod hotkeys;
 use hotkeys::show_hotkeys_ui;
 mod options;
 use options::show_options_ui;
-mod path;
-use path::show_path_ui;
 mod credit;
 use credit::show_credit_ui;
 fn main() -> Result<(), eframe::Error> {
@@ -61,7 +60,6 @@ pub struct MyApp {
     show_capture_screen: bool,
     show_options: bool,
     show_hotkeys: bool,
-    show_path: bool,
     show_credit: bool,
     modifier_save_tmp: String,
     code_save_tmp: String,
@@ -69,6 +67,8 @@ pub struct MyApp {
     modifier_sh_tmp: String,
     format_tmp: String,
     fullscreen: bool,
+    path: PathBuf
+    
 
    
 }
@@ -98,14 +98,14 @@ impl Default for MyApp {
             show_capture_screen: false,
             show_options: false,
             show_hotkeys: false,
-            show_path: false,
             show_credit: false,
             modifier_save_tmp:  "branz".to_string(),
             code_save_tmp: "bratz".to_string(),
             code_sh_tmp:  "bratza".to_string(),
             modifier_sh_tmp: "bratza".to_string(),
             format_tmp: "JPG".to_string(),
-            fullscreen: false
+            fullscreen: false,
+            path: PathBuf::from(r"C:\Users\night\Desktop\PDS\Screenshot_Rust_Project\gui_project")
 
 
             
@@ -334,9 +334,6 @@ impl eframe::App for MyApp {
      if self.show_hotkeys{ 
      show_hotkeys_ui(self,ctx,panel_frame);    
                          } 
-    if self.show_path{
-        show_path_ui(self,ctx,panel_frame);    
-    }
     if self.show_credit{
         show_credit_ui(self,ctx,panel_frame);
     }
@@ -396,7 +393,6 @@ pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::e
                 app.show_main_screen=true;
                 app.show_options=false;
                 app.show_hotkeys=false;
-                app.show_path=false;
                 app.show_credit=false;
                 
             }
@@ -409,14 +405,7 @@ pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::e
                         }
                
                }    
-               else if(app.show_path)
-               {
-                if ui.button("↩").on_hover_text("Back").clicked() {
-                   app.show_path=false;
-                   app.show_options=true;
-                        }
-               
-               } 
+    
                else if(app.show_credit)
                {
                 if ui.button("↩").on_hover_text("Back").clicked() {
