@@ -37,20 +37,11 @@ egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
     
     // Define New capture button and Save button aligned horizontally
     //ui.group(|ui|{
-   Grid::new("blabla")
-               .num_columns(2)
-                .spacing([2.0, 2.0])
-                 .striped(false)
-                
-                   .show(ui, |ui| {
+    ui.vertical_centered(|ui| {
                     ui.group(|ui: &mut egui::Ui|{
-                        Grid::new("ass")
-                    .num_columns(2)
-                     .spacing([40.0, 4.0])
-                      .striped(false)
-                        .show(ui, |ui| {
+                        
                         ui.label("ScreenShot");
-                         ui.end_row();
+                        
                         ui.group(|ui|{//FORM SCREENSHOT
                             Grid::new("ass")
                             .num_columns(2)
@@ -102,19 +93,23 @@ egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
 
 
                         });});
-                    });});});
+                   });
 
-                    ui.end_row();
-                     ui.group(|ui|{//FORM SCREENSHOT
-                            Grid::new("ass")
-                            .num_columns(2)
-                             .spacing([40.0, 4.0])
-                              .striped(false)
-                                .show(ui, |ui| {
 
-                                        ui.label("Change Modifier");
+                   ui.group(|ui: &mut egui::Ui|{
+                        
+                    ui.label("Save");
+                    
+                    ui.group(|ui|{//FORM SCREENSHOT
+                        Grid::new("asas")
+                        .num_columns(2)
+                         .spacing([40.0, 4.0])
+                          .striped(false)
+                            .show(ui, |ui| {
 
-                                        egui::ComboBox::from_id_source("y")
+                                    ui.label("Change Modifier");
+
+                                    egui::ComboBox::from_id_source("xy")
                                         .selected_text(format!("{:}",app.modifier_save_tmp))
                                         .show_ui(ui,|ui|  {                                   
                                           ui.selectable_value(&mut app.modifier_save_tmp, "FN".to_string(),  "FN");
@@ -123,10 +118,12 @@ egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
                                           ui.selectable_value(&mut app.modifier_save_tmp, "SHIFT".to_string(),  "SHIFT");
                                         });
                                  
-                                         
-                                        ui.end_row();
-                                        ui.label("Change Code");
-                                        egui::ComboBox::from_id_source("x")
+                             
+                                     
+                                    ui.end_row();
+
+                                    ui.label("Change Code");
+                                    egui::ComboBox::from_id_source("xe")
                                         .selected_text(format!("{:}",app.code_save_tmp))
                                         .show_ui(ui,|ui|  {  
                                                                         
@@ -150,9 +147,15 @@ egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
                                           ui.selectable_value(&mut app.code_save_tmp, "Z".to_string(),  "Z");
                                           ui.selectable_value( &mut app.code_save_tmp, "W".to_string(),  "W");
                                           ui.selectable_value( &mut app.code_save_tmp, "X".to_string(),  "X");
-                                        });}); });
-                                        ui.end_row();
+                                       });
+                                    ui.end_row();
 
+
+                    });});
+               });
+
+                  
+                                      
                                         
 
                                  ui.group(|ui|{
@@ -185,16 +188,16 @@ egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
 
 
                                       }); 
-                                      ui.end_row();
+                                    
 
                                     
                                     
                                     
                                     
-                                   
+                                          
                    
                 
                 
-                });
-            }
+                                    });
+            });}
  
