@@ -13,8 +13,8 @@ use screenshot_module::*;
 
 mod hotkeys;
 use hotkeys::show_hotkeys_ui;
-mod options2;
-use options2::show_options_ui;
+mod options;
+use options::show_options_ui;
 mod credit;
 use credit::show_credit_ui;
 fn main() -> Result<(), eframe::Error> {
