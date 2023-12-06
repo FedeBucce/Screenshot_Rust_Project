@@ -370,39 +370,25 @@ pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::e
 
     ui.allocate_ui_at_rect(title_bar_rect, |ui| {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+             //homepage_button
+            
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.visuals_mut().button_frame = false;
             ui.add_space(8.0);
-          
             close_maximize_minimize(ui);
             
          
-            //undo_button from hotkeys
-            if(app.show_hotkeys) 
-            {
-                     if ui.button("↩").clicked() {
-                app.show_hotkeys=false;
-                app.show_options=true;
-                     }
-            
-            }    
-            else if(app.show_path)
-            {
-             if ui.button("↩").clicked() {
-                app.show_path=false;
-                app.show_options=true;
-                     }
-            
-            } 
-            else if(app.show_credit)
-            {
-             if ui.button("↩").clicked() {
-                app.show_credit=false;
-                app.show_options=true;
-                     }
-            
-            } 
-            //homepage_button
+         
+           
+        });
+    });
+
+
+    ui.allocate_ui_at_rect(title_bar_rect, |ui| {
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.visuals_mut().button_frame = false;
+            ui.add_space(8.0);
             if ui.button("🏠").clicked() {
                 app.show_main_screen=true;
                 app.show_options=false;
@@ -411,6 +397,31 @@ pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::e
                 app.show_credit=false;
                 
             }
+               //undo_button from hotkeys
+               if(app.show_hotkeys) 
+               {
+                        if ui.button("↩").clicked() {
+                   app.show_hotkeys=false;
+                   app.show_options=true;
+                        }
+               
+               }    
+               else if(app.show_path)
+               {
+                if ui.button("↩").clicked() {
+                   app.show_path=false;
+                   app.show_options=true;
+                        }
+               
+               } 
+               else if(app.show_credit)
+               {
+                if ui.button("↩").clicked() {
+                   app.show_credit=false;
+                   app.show_options=true;
+                        }
+               
+               } 
         });
     });
 }
