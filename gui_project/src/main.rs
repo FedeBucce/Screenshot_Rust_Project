@@ -68,6 +68,7 @@ pub struct MyApp {
     code_sh_tmp: String,
     modifier_sh_tmp: String,
     format_tmp: String,
+    fullscreen: bool,
 
    
 }
@@ -103,7 +104,8 @@ impl Default for MyApp {
             code_save_tmp: "bratz".to_string(),
             code_sh_tmp:  "bratza".to_string(),
             modifier_sh_tmp: "bratza".to_string(),
-            format_tmp: "JPG".to_string()
+            format_tmp: "JPG".to_string(),
+            fullscreen: false
 
 
             
@@ -367,15 +369,15 @@ pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::e
     if title_bar_response.is_pointer_button_down_on() {
         ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
     }
-
+          //MAXIMINIZE_MINIMIXE-UI
     ui.allocate_ui_at_rect(title_bar_rect, |ui| {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-             //homepage_button
+             
             
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.visuals_mut().button_frame = false;
             ui.add_space(8.0);
-            close_maximize_minimize(ui);
+            close_maximize_minimize(app,ui);
             
          
          
@@ -383,13 +385,14 @@ pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::e
         });
     });
 
-
+        //HOMEPAGE AND BACK BUTTON
     ui.allocate_ui_at_rect(title_bar_rect, |ui| {
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.visuals_mut().button_frame = false;
             ui.add_space(8.0);
-            if ui.button("🏠").clicked() {
+          
+            if ui.button("🏠").on_hover_text("Homepage").clicked() {
                 app.show_main_screen=true;
                 app.show_options=false;
                 app.show_hotkeys=false;
@@ -400,7 +403,7 @@ pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::e
                //undo_button from hotkeys
                if(app.show_hotkeys) 
                {
-                        if ui.button("↩").clicked() {
+                        if ui.button("↩").on_hover_text("Back").clicked() {
                    app.show_hotkeys=false;
                    app.show_options=true;
                         }
@@ -408,7 +411,7 @@ pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::e
                }    
                else if(app.show_path)
                {
-                if ui.button("↩").clicked() {
+                if ui.button("↩").on_hover_text("Back").clicked() {
                    app.show_path=false;
                    app.show_options=true;
                         }
@@ -416,7 +419,7 @@ pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::e
                } 
                else if(app.show_credit)
                {
-                if ui.button("↩").clicked() {
+                if ui.button("↩").on_hover_text("Back").clicked() {
                    app.show_credit=false;
                    app.show_options=true;
                         }
@@ -427,11 +430,11 @@ pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::e
 }
 
 
-fn close_maximize_minimize(ui: &mut egui::Ui) {
+fn close_maximize_minimize(app: &mut MyApp,ui: &mut egui::Ui) {
     use egui::{Button, RichText};
 
     let button_height = 12.0;
-
+ 
     let close_response = ui
         .add(Button::new(RichText::new("❌").size(button_height)))
         .on_hover_text("Close the window");
@@ -445,4 +448,28 @@ fn close_maximize_minimize(ui: &mut egui::Ui) {
     if minimized_response.clicked() {
         ui.ctx().send_viewport_cmd(ViewportCommand::Minimized(true));
     }
+    if(app.fullscreen==false){
+        
+    let maximized_response = ui
+    .add(Button::new(RichText::new("□").size(button_height)))
+    .on_hover_text("Full Screen");
+if maximized_response.clicked() {
+    ui.ctx().send_viewport_cmd(ViewportCommand::Maximized(true));
+    app.fullscreen=true;
 }
+}
+else{
+    if(app.fullscreen==true){
+       
+    let maximized_response = ui
+    .add(Button::new(RichText::new("□").size(button_height)))
+    .on_hover_text("Exit Full Screen");
+if maximized_response.clicked() {
+    let vec_2=egui::Vec2::new(450.0,400.0);
+    ui.ctx().send_viewport_cmd(ViewportCommand::InnerSize(vec_2));
+    app.fullscreen=false;
+}
+
+}
+
+}}
