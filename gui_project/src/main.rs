@@ -1,12 +1,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use egui::{Spinner, Shape, Pos2, Color32, Stroke,Grid};
-use::egui::{TextureHandle, ColorImage};
+use egui::{Spinner, Shape, pos2, Color32, Stroke,Grid};
+use::egui::{TextureHandle, ColorImage,Window};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use eframe::egui::ViewportCommand;
 use std::{sync::Arc, path::PathBuf};
 use screenshots::Screen;
 use image::RgbaImage;
+use std::thread;
+use std::time::Duration;
 
 mod screenshot_module;
 use screenshot_module::*;
@@ -61,6 +63,9 @@ pub struct MyApp {
     show_options: bool,
     show_hotkeys: bool,
     show_credit: bool,
+    snap: bool,
+    screenshoot_w: bool,
+    count: i32,
     modifier_save_tmp: String,
     code_save_tmp: String,
     code_sh_tmp: String,
@@ -75,14 +80,22 @@ pub struct MyApp {
 
 
 impl MyApp {
-    fn take_screenshot(&mut self) {
+    fn take_screenshot(&mut self,ctx :  &egui::Context) {
+        
+
         let choice = 0;
         let screen = choose_screen(&self.screens, choice);
         let shot = capture_full_screen(&screen).unwrap();
+        
         let raw_data: &[u8] = &shot.as_raw();
         let color_image = ColorImage::from_rgba_unmultiplied([shot.width() as usize, shot.height() as usize], raw_data);
         self.screenshot = Option::from(Arc::new(color_image));
-        self.show_main_screen = true;
+
+
+        //self.show_main_screen = true;
+        self.snap=false;
+        self.show_main_screen=true;
+
         
 
     }
@@ -99,6 +112,9 @@ impl Default for MyApp {
             show_options: false,
             show_hotkeys: false,
             show_credit: false,
+            snap: false,
+            screenshoot_w: false,
+            count: 0,
             modifier_save_tmp:  "FN".to_string(),
             code_save_tmp: "I".to_string(),
             code_sh_tmp:  "X".to_string(),
@@ -131,9 +147,11 @@ impl eframe::App for MyApp {
         };
         
         if self.show_main_screen {
+             
             // Define main window central panel
-            egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
-    
+           egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
+                
+              
                 // Retrieve screenshot if taken
                 if let Some(screenshot) = self.screenshot.as_ref() {
                     self.texture = Some(ui.ctx().load_texture(
@@ -212,122 +230,48 @@ impl eframe::App for MyApp {
                 }
     
             });
+          
         }
 
         if self.show_capture_screen {
             // Define capture window
-            ctx.show_viewport_immediate(
-                egui::ViewportId::from_hash_of("capture"),
-                egui::ViewportBuilder::default()
-                    .with_transparent(true)
-                    .with_decorations(false)
-                    .with_inner_size([200.0, 100.0])
-                    .with_min_inner_size([200.0, 100.0]),
-                |ctx, class| {
+           
+            Window::new("TAKE A SCREENSHOT")
+            .title_bar(false)
+            .fixed_pos(pos2(750.0 , 0.0))
+            .show(ctx, |ui| {
+                ctx.send_viewport_cmd(ViewportCommand::Maximized(true));
+                
+              
+                    ui.horizontal(|ui| {
+                  
 
-                    // Define capture window central panel
-                    egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
-                        let app_rect = ui.max_rect();
-
-                        // Define title bar
-                        let mut title_bar_rect = app_rect;
-                        title_bar_rect.max.y = app_rect.min.y + 32.0;
-                        title_bar_ui(self,ui, title_bar_rect, "Screen capture");
-
-
-                        // Define content_ui as ui child capture button with centered layout
-                        let mut content_rect = app_rect;
-                        content_rect.min.y = title_bar_rect.max.y;
-                        content_rect = content_rect.shrink(8.0);
-                        let content_ui = ui.child_ui(content_rect, egui::Layout::centered_and_justified(egui::Direction::TopDown));
-                        
-                        // Define capture button
-                        let circle_shape = egui::epaint::CircleShape {
-                            center: content_ui.max_rect().center(),
-                            radius: 36.0,
-                            fill: Color32::WHITE,
-                            stroke: Stroke::default()
-                        };
-                        content_ui.painter().add(Shape::Circle(circle_shape));
-
-                        let circle_shape = egui::epaint::CircleShape {
-                            center: content_ui.max_rect().center(),
-                            radius: 32.0,
-                            fill: Color32::WHITE,
-                            stroke: Stroke::new(4.0, Color32::BLACK)
-                        };
-                        content_ui.painter().add(Shape::Circle(circle_shape));
-
-                        // Define button click interaction
-                        let interaction_rect = circle_shape.visual_bounding_rect();
-                        let button_response = ui.interact(interaction_rect, egui::Id::new("button"), egui::Sense::click());
-                        
-                        if button_response.clicked() {
-                            self.show_capture_screen = false;
-                            self.show_main_screen = true;
-                            // ui.set_visible(false); // Not running
-                            self.take_screenshot();
+                         ui.button("⛶").request_focus();
+                        if ui.button("🖵").clicked() {
+                            self.show_capture_screen =false;
+                            self.snap=true;
+                          }
+                        ui.separator();
+                        if ui.button("↩").clicked() {
+                            self.show_capture_screen=false;
+                            self.show_main_screen=true;
+                            
                         }
-
-                    });
-
-                    if ctx.input(|i| i.viewport().close_requested()) {
-                        // Close if x pressed
-                        self.show_capture_screen = false;
-                        self.show_main_screen = true;
-                    }
-                },
-            );
-        }
-
-    //     if self.show_options {
-    //         // Define capture window
-    //         ctx.show_viewport_immediate(
-    //             egui::ViewportId::from_hash_of("capture"),
-    //             egui::ViewportBuilder::default()
-    //                 .with_transparent(true)
-    //                 .with_decorations(false)
-    //                 .with_inner_size([200.0, 100.0])
-    //                 .with_min_inner_size([200.0, 100.0]),
-    //             |ctx, class| {
-
-    //                 // Define capture window central panel
-    //                 egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
-    //                     let app_rect = ui.max_rect();
-
-    //                     // Define title bar
-    //                     let mut title_bar_rect = app_rect;
-    //                     title_bar_rect.max.y = app_rect.min.y + 32.0;
-    //                     title_bar_ui(ui, title_bar_rect, "Screen capture");
-    //                     Grid::new("settings_grid")
-    //                     .num_columns(2)
-    //                     .spacing([40.0, 4.0])
-    //                     .striped(false)
-    //                     .show(ui, |ui| {
-    //                     ui.label("Change Hot Key");
-    //                     ui.end_row();
-    //                     ui.label("Path");
-    //                     ui.end_row();
-    //                     ui.label("Save");
-    //                     ui.end_row();
-    //                     ui.label("Default Hot Key");
                         
+                    });
+                });
+            
+        }
+     
+        
+    if self.snap{
 
-
-
-    //                     });
-
-
-    //                 if ctx.input(|i| i.viewport().close_requested()) {
-    //                     // Close if x pressed
-    //                     self.show_options = false;
-    //                     self.show_main_screen = true;
-    //                 }
-    //             },
-    //         );
-    //     })
-    //  }
+        self.take_screenshot(ctx);
     
+
+
+    }
+        
      if self.show_options {
         show_options_ui(self,ctx,panel_frame)    
                            }
