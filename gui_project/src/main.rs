@@ -370,7 +370,7 @@ impl eframe::App for MyApp {
         
     if self.snap{
 
-        self.take_screenshot(ctx);
+        self.take_screenshot();
     
 
 
