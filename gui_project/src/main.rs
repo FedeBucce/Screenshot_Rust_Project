@@ -4,7 +4,7 @@ use egui::{Spinner, Shape, pos2, Color32, Stroke,Grid};
 use::egui::{TextureHandle, ColorImage,Window};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use eframe::egui::ViewportCommand;
-use std::{sync::Arc, path::PathBuf};
+use std::{sync::{Arc, Mutex}, path::PathBuf, process::exit};
 use screenshots::Screen;
 use image::RgbaImage;
 use std::thread;
@@ -19,32 +19,147 @@ mod options;
 use options::show_options_ui;
 mod credit;
 use credit::show_credit_ui;
-fn main() -> Result<(), eframe::Error> {
-    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
-    
+
+use hotkey::{Listener, modifiers};
+use tokio::task;
+
+
+use eframe::App;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+struct MyAppWrapper(Arc<Mutex<MyApp>>);
+
+impl App for MyAppWrapper {
+    fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
+        self.0.lock().unwrap().clear_color(visuals)
+    }
+
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        self.0.lock().unwrap().update(ctx, frame)
+    }
+}
+
+fn string_to_modifiers(s: &str) -> u32 {
+    match s {
+        "ALT" => modifiers::ALT,
+        "CTRL" => modifiers::CONTROL,
+        "SHIFT" => modifiers::SHIFT,
+        _ => {
+            todo!("Handle unknown modifier: {}", s);
+        }
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let my_app_instance = Arc::new(Mutex::new(MyApp::default()));
+
+    task::spawn({
+        let my_app_instance = Arc::clone(&my_app_instance);
+        async move {
+            let mut hotkey_listener = Listener::new();
+
+            let modifier_sh_tmp = my_app_instance.lock().unwrap().modifier_sh_tmp.clone();
+            let code_sh_tmp = my_app_instance.lock().unwrap().code_sh_tmp.clone();
+            let carattere: Option<char> = code_sh_tmp.chars().next();
+            let code_sh_tmp = carattere.unwrap() as u32;
+
+            println!("Hotkey started");
+
+            hotkey_listener
+                .register_hotkey(
+                    string_to_modifiers(&modifier_sh_tmp),
+                    code_sh_tmp,
+                    move || {
+                        let my_app_instance = Arc::clone(&my_app_instance);
+            
+                        tokio::spawn(async move { 
+                            let mut my_app_instance = my_app_instance.lock().unwrap();
+                            my_app_instance.take_screenshot();
+                            my_app_instance.show_capture_screen = false;
+                            my_app_instance.show_main_screen = true;
+        
+                            println!(
+                                "Hotkey pressed! Starting screen capture... Code: {}, Modifier: {}",
+                                my_app_instance.code_sh_tmp,
+                                my_app_instance.modifier_sh_tmp
+                            );
+                        });
+                    }
+                )
+                .unwrap();
+            
+            hotkey_listener.listen(); 
+        }
+    });
+
+    task::spawn({
+        let my_app_instance = Arc::clone(&my_app_instance);
+        async move {
+            let mut hotkey_listener = Listener::new();
+
+            let modifier_save_tmp = my_app_instance.lock().unwrap().modifier_save_tmp.clone();
+            let code_save_tmp = my_app_instance.lock().unwrap().code_save_tmp.clone();
+            let carattere: Option<char> = code_save_tmp.chars().next();
+            let code_save_tmp = carattere.unwrap() as u32;
+
+            println!("Hotkey started");
+
+            hotkey_listener
+                .register_hotkey(
+                    string_to_modifiers(&modifier_save_tmp),
+                    code_save_tmp,
+                    move || {
+                        let my_app_instance = Arc::clone(&my_app_instance);
+            
+                        tokio::spawn(async move { 
+                            let my_app_instance = my_app_instance.lock().unwrap();
+                            if let Some(screenshot) = my_app_instance.screenshot.as_ref() {
+                                let raw_data = screenshot.as_raw();
+                                let image_buffer = RgbaImage::from_raw(screenshot.width() as u32, screenshot.height() as u32, Vec::from(raw_data));
+                                let format: &str = "png";
+                                if let Some(img_buffer) = image_buffer.as_ref(){
+                                    save_image_or_gif(img_buffer, format, "screen").ok();
+                                }
+                            }
+        
+                            println!(
+                                "Hotkey pressed! Starting screen saving... Code: {}, Modifier: {}",
+                                my_app_instance.code_save_tmp,
+                                my_app_instance.modifier_save_tmp
+                            );
+                        });
+                    }
+                )
+                .unwrap();
+            
+            hotkey_listener.listen(); 
+        }
+    });
+
+    env_logger::init(); 
+
     let options = eframe::NativeOptions {
-        
         viewport: egui::ViewportBuilder::default()
-        .with_transparent(true)
-        .with_decorations(false)
-        .with_inner_size([450.0, 400.0])
-        .with_min_inner_size([450.0, 300.0]),
-        
-        
+            .with_transparent(true)
+            .with_decorations(false)
+            .with_inner_size([450.0, 400.0])
+            .with_min_inner_size([450.0, 300.0]),
         ..Default::default()
     };
 
-  
-
-    eframe::run_native(
+    let _  =  eframe::run_native(
         "Screen capture",
         options,
-        Box::new(|cc| {
-            // egui_extras::install_image_loaders(&cc.egui_ctx);
-            Box::<MyApp>::default()
+        Box::new(|_cc| {
+            Box::new(MyAppWrapper(my_app_instance))
         }),
-    )
+    );
+
+    exit(0)
 }
+
+
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Enum {
@@ -52,7 +167,6 @@ enum Enum {
     Second,
     Third,
 }
-
 
 pub struct MyApp {
     screens: Vec<Screen>,
@@ -72,18 +186,12 @@ pub struct MyApp {
     modifier_sh_tmp: String,
     format_tmp: String,
     fullscreen: bool,
-    path: PathBuf
-    
-
-   
+    path: PathBuf,
 }
 
-
 impl MyApp {
-    fn take_screenshot(&mut self,ctx :  &egui::Context) {
-        
-
-        let choice = 0;
+    fn take_screenshot(&mut self) {
+        let choice = 1;
         let screen = choose_screen(&self.screens, choice);
         let shot = capture_full_screen(&screen).unwrap();
         
@@ -121,14 +229,11 @@ impl Default for MyApp {
             modifier_sh_tmp: "FN".to_string(),
             format_tmp: "JPG".to_string(),
             fullscreen: false,
-            path: PathBuf::from(r"C:\Users\night\Desktop\PDS\Screenshot_Rust_Project\gui_project")
-
-
-            
-
+            path: PathBuf::from(r"C:\Users\fedeb\OneDrive\Desktop\Screenshot_Rust_Project\gui_project"),
         }
     }
 }
+
 
 impl eframe::App for MyApp {
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
@@ -137,7 +242,6 @@ impl eframe::App for MyApp {
 
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-
         let panel_frame = egui::Frame {
             fill: ctx.style().visuals.window_fill(),
             rounding: 10.0.into(),
@@ -284,11 +388,6 @@ impl eframe::App for MyApp {
 }
     }
 
-
-
-
-
-
 pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: &str) {
     use egui::*;
 
@@ -361,7 +460,6 @@ pub fn title_bar_ui(app: &mut MyApp,ui: &mut egui::Ui, title_bar_rect: eframe::e
         });
     });
 }
-
 
 fn close_maximize_minimize(app: &mut MyApp,ui: &mut egui::Ui) {
     use egui::{Button, RichText};
