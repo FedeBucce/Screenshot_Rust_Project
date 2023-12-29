@@ -150,7 +150,7 @@ impl eframe::App for MyApp {
              
             // Define main window central panel
            egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
-                
+              
               
                 // Retrieve screenshot if taken
                 if let Some(screenshot) = self.screenshot.as_ref() {
