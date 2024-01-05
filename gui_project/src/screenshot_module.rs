@@ -14,6 +14,7 @@ use std::convert::TryInto;
 use gif::{Encoder, Frame};
 
 
+#[allow(dead_code)]
 pub struct ImageParams {
     pub x_pos: i32,
     pub y_pos: i32,
@@ -36,15 +37,15 @@ pub fn capture_full_screen(screen: &Screen) -> Result<image::ImageBuffer<Rgba<u8
     Ok(image)
 }
 
-pub fn capture_full_screen_and_save(screen: &Screen, format: &str, file_name: &str) -> Result<(), Error> {
-    let image = &screen.capture().unwrap();
-    save_image_or_gif(image, format, file_name)
-}
+// pub fn capture_full_screen_and_save(screen: &Screen, format: &str, file_name: &str) -> Result<(), Error> {
+//     let image = &screen.capture().unwrap();
+//     save_image_or_gif(image, format, file_name)
+// }
 
-pub fn capture_cropped_screen_and_save(screen: &Screen, params: &ImageParams, format: &str, file_name: &str) -> Result<(), Error> {
-    let cropped_image = crop_image(screen, params);
-    save_image_or_gif(&cropped_image, format, file_name)
-}
+// pub fn capture_cropped_screen_and_save(screen: &Screen, params: &ImageParams, format: &str, file_name: &str) -> Result<(), Error> {
+//     let cropped_image = crop_image(screen, params);
+//     save_image_or_gif(&cropped_image, format, file_name)
+// }
 
 pub fn save_image_or_gif(image: &image::ImageBuffer<Rgba<u8>, Vec<u8>>, format: &str, file_name: &str) -> Result<(), Error> {
     match format.to_lowercase().as_str() {
@@ -66,6 +67,7 @@ pub fn save_image(image: &image::ImageBuffer<Rgba<u8>, Vec<u8>>, path: &str) -> 
     Ok(())
 }
 
+#[allow(dead_code, unused_variables)]
 pub fn crop_image(screen: &Screen, params: &ImageParams) -> image::ImageBuffer<Rgba<u8>, Vec<u8>> {
     screen
         .capture_area(params.x_pos, params.y_pos, params.width, params.height)
