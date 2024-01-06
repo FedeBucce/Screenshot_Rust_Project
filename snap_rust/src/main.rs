@@ -16,6 +16,8 @@ use std::time::Duration;
 
 use chrono::Local;
 
+use global_hotkey::{GlobalHotKeyManager, hotkey::{HotKey, Modifiers, Code}, HotKeyState};
+use global_hotkey::GlobalHotKeyEvent;
 
 
 // Functions
@@ -54,7 +56,6 @@ pub fn bresenham_line(x0: usize, y0: usize, x1: usize, y1: usize) -> Vec<(usize,
     points
 }
 
-
 fn draw_thick_line(img: &mut DynamicImage, start:(f32, f32), end:(f32, f32), t: usize, color: [u8; 4]) {
     let segment = bresenham_line(start.0 as usize, start.1 as usize, end.0 as usize, end.1 as usize);
     for point in segment {
@@ -62,19 +63,9 @@ fn draw_thick_line(img: &mut DynamicImage, start:(f32, f32), end:(f32, f32), t: 
     }
 }
 
-
-
 fn get_real_image_pos(pos: Pos2, image_rect_size: Vec2, real_image_size: [usize; 2]) -> Pos2{
     return Pos2::new(pos[0]*real_image_size[0] as f32/image_rect_size[0], pos[1]*real_image_size[1] as f32/image_rect_size[1]);
 }
-
-
-
-
-
-
-
-
 
 fn take_snapshot(disp: &DisplayInfo) -> Option<DynamicImage> {
         
@@ -93,33 +84,64 @@ fn take_snapshot(disp: &DisplayInfo) -> Option<DynamicImage> {
     Some(dynamic_image)
  }
 
+fn string_to_key(s: &str) -> Code {
+    match s.to_uppercase().as_str() {
+        "A" => Code::KeyA,
+        "B" => Code::KeyB,
+        "C" => Code::KeyC,
+        "D" => Code::KeyD,
+        "E" => Code::KeyE,
+        "F" => Code::KeyF,
+        "G" => Code::KeyG,
+        "H" => Code::KeyH,
+        "I" => Code::KeyI,
+        "J" => Code::KeyJ,
+        "K" => Code::KeyK,
+        "L" => Code::KeyL,
+        "M" => Code::KeyM,
+        "N" => Code::KeyN,
+        "O" => Code::KeyO,
+        "P" => Code::KeyP,
+        "Q" => Code::KeyQ,
+        "R" => Code::KeyR,
+        "S" => Code::KeyS,
+        "T" => Code::KeyT,
+        "U" => Code::KeyU,
+        "V" => Code::KeyV,
+        "W" => Code::KeyW,
+        "X" => Code::KeyX,
+        "Y" => Code::KeyY,
+        "Z" => Code::KeyZ,
+        _ => panic!("Chiave non valida"),
+    }
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+fn string_to_modifiers(s: &String) -> Option<Modifiers> {
+    match s.as_str() {
+        "ALT" => Some(Modifiers::ALT),
+        "CTRL" => Some(Modifiers::CONTROL),
+        "SHIFT" => Some(Modifiers::SHIFT),
+        _ => {
+            todo!("Handle unknown modifier: {}", s);
+        }
+    }
+}
 
 fn main() {
+    let mut my_app_instance = SnapRustApp::default();
+
+    my_app_instance.register_hotkey();
+
     let native_options = eframe::NativeOptions::default();
 
     eframe::run_native(
         "SnapRust",
         native_options,
-        Box::new(|cc| Box::new(SnapRustApp::new(cc))),
+        Box::new(|_cc| Box::new(my_app_instance)),
     )
     .unwrap();
 }
+
 
 
  #[derive(PartialEq)]
@@ -129,8 +151,6 @@ fn main() {
      Eraser,
      Crop
  }
-
-
 
 struct SnapRustApp {
     snapshot: Option<DynamicImage>,
@@ -146,7 +166,12 @@ struct SnapRustApp {
     last_pos: Pos2,
     current_pos: Pos2,
     rx: Receiver<DynamicImage>,
-    tx: Sender<DynamicImage>
+    tx: Sender<DynamicImage>,
+    modifier_save: String,
+    code_save: String,
+    modifier_take: String,
+    code_take: String,
+    manager: GlobalHotKeyManager,
 }
 
 impl Default for SnapRustApp {
@@ -167,11 +192,15 @@ impl Default for SnapRustApp {
             last_pos: Pos2::default(),
             current_pos: Pos2::default(),
             rx: rx,
-            tx: tx
+            tx: tx,
+            modifier_save:  "SHIFT".to_string(),
+            code_save: "D".to_string(),
+            modifier_take:  "CTRL".to_string(),
+            code_take: "A".to_string(),
+            manager: GlobalHotKeyManager::new().expect("Failed to initialize GlobalHotKeyManager"),
         }
     }
 }
-
 
 impl SnapRustApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
@@ -179,6 +208,33 @@ impl SnapRustApp {
         SnapRustApp::default()
     }
 
+    fn register_hotkey(&mut self) {
+        let modifier_take = self.modifier_take.clone();
+        let code_take = self.code_take.clone();
+        let hotkey_take = HotKey::new(string_to_modifiers(&modifier_take), string_to_key(&code_take));
+
+        let modifier_save = self.modifier_save.clone();
+        let code_save = self.code_save.clone();
+        let hotkey_save = HotKey::new(string_to_modifiers(&modifier_save), string_to_key(&code_save));
+
+        if let Err(err) = self.manager.register(hotkey_take) {
+            eprintln!("Failed to register hotkey: {}", err);
+        }
+        if let Err(err) = self.manager.register(hotkey_save) {
+            eprintln!("Failed to register hotkey: {}", err);
+        }
+    }
+
+    fn unregister_hotkeys(&mut self) {
+        let hotkeys_to_unregister: Vec<HotKey> = vec![
+            HotKey::new(string_to_modifiers(&self.modifier_take), string_to_key(&self.code_take)),
+            HotKey::new(string_to_modifiers(&self.modifier_save), string_to_key(&self.code_save)),
+        ];
+
+        if let Err(err) = self.manager.unregister_all(&hotkeys_to_unregister) {
+            eprintln!("Failed to unregister hotkeys: {}", err);
+        }
+    }
 
     fn get_snapshot(&mut self, ctx: &Context) {
    
@@ -202,7 +258,28 @@ impl SnapRustApp {
         });
     }
 
-
+    fn register_hotkey_listener(&mut self, ctx: &Context, frame: &mut Frame) {
+        if let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
+            if event.state == HotKeyState::Pressed {
+                let modifier_take = self.modifier_take.clone();
+                let code_take = self.code_take.clone();
+                let hotkey_take = HotKey::new(string_to_modifiers(&modifier_take), string_to_key(&code_take));
+    
+                let modifier_save = self.modifier_save.clone();
+                let code_save = self.code_save.clone();
+                let hotkey_save = HotKey::new(string_to_modifiers(&modifier_save), string_to_key(&code_save));
+    
+                if event.id == hotkey_take.id() {
+                    frame.set_visible(false);
+                    self.get_snapshot(ctx);
+                }
+    
+                if event.id == hotkey_save.id() {
+                    self.save_snapshot();
+                }
+            }
+        }
+    }
 
     fn save_snapshot(&mut self) {
 
@@ -235,23 +312,6 @@ impl SnapRustApp {
             None => println!("Invalid path"),
         };
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
 
     fn update_editing(&mut self, ui: &mut Ui, image_response: Response, real_image_size: [usize; 2]) {
         if image_response.dragged(){
@@ -337,39 +397,6 @@ impl SnapRustApp {
         };
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     fn render_top_panel(&mut self, ctx: &Context, frame: &mut Frame) {
         TopBottomPanel::top("top panel")
             .exact_height(36.)
@@ -444,15 +471,6 @@ impl SnapRustApp {
                 });
             });
     }
-
-
-
-
-
-
-
-
-
 
     fn render_side_panel(&mut self, ctx: &Context, frame: &mut Frame) {
         if self.show_tools{
@@ -546,15 +564,6 @@ impl SnapRustApp {
         }
     }
 
-
-
-
-
-
-
-
-
-
     fn render_central_panel(&mut self, ctx: &Context, frame: &mut Frame) {
 
         CentralPanel::default().show(ctx, |ui| { 
@@ -608,23 +617,6 @@ impl SnapRustApp {
 
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 impl eframe::App for SnapRustApp {
     fn update(&mut self, ctx: &Context, frame: &mut Frame) {
         match self.rx.try_recv() {
@@ -640,10 +632,10 @@ impl eframe::App for SnapRustApp {
             Err(_) => {}
             
         }
-
+        self.register_hotkey_listener(ctx, frame);
+        
         self.render_top_panel(ctx, frame);
         self.render_central_panel(ctx, frame);
         self.render_side_panel(ctx, frame);
-
     }
 }
