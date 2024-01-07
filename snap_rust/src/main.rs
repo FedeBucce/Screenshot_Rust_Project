@@ -1,7 +1,7 @@
 use eframe::egui::{Shape, Rect, Visuals, SidePanel, Sense, Pos2, Vec2, Align, Button, DragValue, CentralPanel, Context, Layout, Direction, TopBottomPanel, ComboBox, ColorImage, ImageButton, Response, CursorIcon, Ui, Stroke};
 use eframe::Frame;
 
-use egui::Color32;
+use egui::{Color32, RichText};
 use rfd::FileDialog;
 
 use screenshots::display_info::DisplayInfo;
@@ -205,6 +205,7 @@ struct SnapRustApp {
     pen_size: usize,
     last_pos: Pos2,
     current_pos: Pos2,
+    valid: bool,
     rx: Receiver<DynamicImage>,
     tx: Sender<DynamicImage>,
     hotkeys: Vec<Hotkey>,
@@ -240,6 +241,7 @@ impl Default for SnapRustApp {
             pen_size: 1,
             last_pos: Pos2::default(),
             current_pos: Pos2::default(),
+            valid: true,
             rx: rx,
             tx: tx,
             hotkeys: hotkeys_vec,
@@ -792,23 +794,30 @@ impl SnapRustApp {
                         ui.add_space(10.);
                     }
                 });
-
+                if self.valid==false {
+                    ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
+                    ui.add_space(50.);
+                    ui.label(RichText::new("Hotkeys already used!").color(Color32::from_rgb(255, 0, 0))).highlight();});
+                }
                 shortcut_ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
                     
                     let apply_button = ui.add(Button::new("Apply"));
                     if apply_button.clicked() {
-                        let mut valid = true;
+
                         let mut encountered_hotkeys = HashSet::new();
 
                         for hotkey in self.hotkeys.iter_mut() {
                             let key = (hotkey.tmp_modifier.clone(), hotkey.tmp_code.clone());
                             if !encountered_hotkeys.insert(key) {
-                                valid = false;
+                                self.valid = false;
+                            
                                 break;
                             }
+                            self.valid=true;
                         }
 
-                        if valid {
+                        if self.valid {
+                            
                             for hotkey in self.hotkeys.iter_mut() {
                                 hotkey.modifier = hotkey.tmp_modifier.clone();                            
                                 hotkey.code = hotkey.tmp_code.clone();
