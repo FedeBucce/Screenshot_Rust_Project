@@ -648,18 +648,17 @@ impl SnapRustApp {
                     if apply_button.clicked() {
 
                         let mut encountered_hotkeys = HashSet::new();
+                        let mut valid = true;
 
                         for hotkey in self.hotkeys.iter_mut() {
                             let key = (hotkey.tmp_modifier.clone(), hotkey.tmp_code.clone());
                             if !encountered_hotkeys.insert(key) {
-                                self.valid_hotkeys = false; 
+                                valid = false; 
                                 break;
                             }
-
-                            self.valid_hotkeys=true;
                         }
 
-                        if self.valid_hotkeys {
+                        if valid {
                             
                             for hotkey in self.hotkeys.iter_mut() {
                                 hotkey.modifier = hotkey.tmp_modifier.clone();                            
@@ -672,11 +671,14 @@ impl SnapRustApp {
     
                             self.show_settings = false;
                         }
+
+                        self.valid_hotkeys = valid;
                     }
 
 
                     let cancel_button = ui.add(Button::new("Cancel"));
                     if cancel_button.clicked() {
+                        self.valid_hotkeys=true;
                         self.show_settings = false;
                     }
 
