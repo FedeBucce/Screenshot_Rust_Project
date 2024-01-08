@@ -1,13 +1,19 @@
+pub mod tool_utils;
+pub mod hotkeys_utils;
+
+use tool_utils::*;
+use hotkeys_utils::*;
+
+
 use eframe::egui::{Shape, Rect, Visuals, SidePanel, Sense, Pos2, Vec2, Align, Button, DragValue, CentralPanel, Context, Layout, Direction, TopBottomPanel, ComboBox, ColorImage, ImageButton, Response, CursorIcon, Ui, Stroke};
 use eframe::Frame;
 
-use egui::Color32;
+use egui::{Color32, RichText};
 use rfd::FileDialog;
 
 use screenshots::display_info::DisplayInfo;
 use screenshots::Screen;
 use image::DynamicImage;
-use imageproc::drawing::draw_filled_circle_mut;
 
 use std::collections::VecDeque;
 use std::thread;
@@ -16,8 +22,7 @@ use std::time::Duration;
 
 use chrono::Local;
 
-use global_hotkey::{GlobalHotKeyManager, hotkey::{HotKey, Modifiers, Code}, HotKeyState};
-use global_hotkey::GlobalHotKeyEvent;
+use global_hotkey::{GlobalHotKeyManager, HotKeyState, GlobalHotKeyEvent};
 
 use arboard::{Clipboard, ImageData};
 use std::borrow::Cow;
@@ -25,173 +30,7 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 
 
-
-
-// Functions
-pub fn bresenham_line(x0: usize, y0: usize, x1: usize, y1: usize) -> Vec<(usize, usize)> {
-    let mut points = Vec::new();
-
-    let dx = (x1 as i32 - x0 as i32).abs();
-    let dy = (y1 as i32 - y0 as i32).abs();
-
-    let mut x = x0 as i32;
-    let mut y = y0 as i32;
-
-    let x_inc = if x1 > x0 { 1 } else { -1 };
-    let y_inc = if y1 > y0 { 1 } else { -1 };
-
-    let mut error = dx - dy;
-
-    while x != x1 as i32 || y != y1 as i32 {
-        points.push((x as usize, y as usize));
-
-        let error2 = error * 2;
-
-        if error2 > -dy {
-            error -= dy;
-            x += x_inc;
-        }
-
-        if error2 < dx {
-            error += dx;
-            y += y_inc;
-        }
-    }
-
-    points.push((x1, y1));
-
-    points
-}
-
-
-
-fn draw_thick_line(img: &mut DynamicImage, start:(f32, f32), end:(f32, f32), t: usize, color: [u8; 4]) {
-    let segment = bresenham_line(start.0 as usize, start.1 as usize, end.0 as usize, end.1 as usize);
-    for point in segment {
-        draw_filled_circle_mut(img, (point.0 as i32, point.1 as i32), t as i32, color.into());
-    }
-}
-
-
-
-fn linear_to_srgb(lin_rgb: [f32; 3]) -> [u8; 3] {
-    let mut srgb: [u8; 3] = [0; 3];
-
-    for i in 0..3 {
-        let v = lin_rgb[i];
-        if v <= 0.0 {
-            srgb[i] = 0 as u8;
-        } else if v >= 1.0 {
-            srgb[i] = 255 as u8;
-        } else {
-            srgb[i] = (v.powf(1.0 / 2.2) * 255.0 + 0.5) as u8; // Corrected formula
-        }
-    }
-
-    return srgb;
-}
-
-fn get_real_image_pos(pos: Pos2, image_rect_size: Vec2, real_image_size: [usize; 2]) -> Pos2{
-    return Pos2::new(pos[0]*real_image_size[0] as f32/image_rect_size[0], pos[1]*real_image_size[1] as f32/image_rect_size[1]);
-}
-
-fn take_snapshot(disp: &DisplayInfo) -> Option<DynamicImage> {
-    let screen : Screen = Screen::new(disp);
-    let image_buffer = screen.capture().unwrap();
-    let dynamic_image = DynamicImage::from(image_buffer);
-    Some(dynamic_image)
- }
-
-fn string_to_key(s: &str) -> Option<Code> {
-    match s.to_uppercase().as_str() {
-        "A" => Some(Code::KeyA),
-        "B" => Some(Code::KeyB),
-        "C" => Some(Code::KeyC),
-        "D" => Some(Code::KeyD),
-        "E" => Some(Code::KeyE),
-        "F" => Some(Code::KeyF),
-        "G" => Some(Code::KeyG),
-        "H" => Some(Code::KeyH),
-        "I" => Some(Code::KeyI),
-        "J" => Some(Code::KeyJ),
-        "K" => Some(Code::KeyK),
-        "L" => Some(Code::KeyL),
-        "M" => Some(Code::KeyM),
-        "N" => Some(Code::KeyN),
-        "O" => Some(Code::KeyO),
-        "P" => Some(Code::KeyP),
-        "Q" => Some(Code::KeyQ),
-        "R" => Some(Code::KeyR),
-        "S" => Some(Code::KeyS),
-        "T" => Some(Code::KeyT),
-        "U" => Some(Code::KeyU),
-        "V" => Some(Code::KeyV),
-        "W" => Some(Code::KeyW),
-        "X" => Some(Code::KeyX),
-        "Y" => Some(Code::KeyY),
-        "Z" => Some(Code::KeyZ),
-        _ => None,
-    }
-}
-
-fn string_to_modifiers(s: &String) -> Option<Modifiers> {
-    match s.as_str() {
-        "ALT" => Some(Modifiers::ALT),
-        "CTRL" => Some(Modifiers::CONTROL),
-        "SHIFT" => Some(Modifiers::SHIFT),
-        _ => {
-            todo!("Handle unknown modifier: {}", s);
-        }
-    }
-}
-
-fn main() {
-    let mut native_options = eframe::NativeOptions::default();
-    native_options.min_window_size = Some(Vec2::new(750., 500.));
-
-    eframe::run_native(
-        "SnapRust",
-        native_options,
-        Box::new(|cc| Box::new(SnapRustApp::new(cc))),
-    )
-    .unwrap();
-}
-
-
-
- #[derive(PartialEq)]
- enum Tool {
-     None,
-     Pen,
-     Highlighter,
-     Crop
- }
-
-struct Hotkey {
-    label: String,
-    modifier: String,
-    tmp_modifier: String,
-    code: String,
-    tmp_code: String,
-    registered_hotkey: HotKey
-}
-
-impl Hotkey {
-    fn new(label: String, modifier: String, code: String) -> Self {
-        let registered_hotkey = HotKey::new(string_to_modifiers(&modifier), string_to_key(&code).unwrap());
-        Hotkey{
-            label: label,
-            modifier: modifier.clone(),
-            tmp_modifier: modifier,
-            code: code.clone(),
-            tmp_code: code,
-            registered_hotkey: registered_hotkey
-        }
-    }
-}
-
-
-struct SnapRustApp {
+pub struct SnapRustApp {
     snapshot: Option<DynamicImage>,
     snapshots_undo: VecDeque<DynamicImage>,
     snapshots_redo: VecDeque<DynamicImage>,
@@ -204,13 +43,12 @@ struct SnapRustApp {
     tooling: bool,
     pen_color: [f32; 3],
     pen_size: usize,
-    highlighter_color: [f32; 3],
-    highlighter_size: usize,
     last_pos: Pos2,
     current_pos: Pos2,
     rx: Receiver<DynamicImage>,
     tx: Sender<DynamicImage>,
     hotkeys: Vec<Hotkey>,
+    valid_hotkeys: bool,
     manager: GlobalHotKeyManager,
 }
 
@@ -240,78 +78,44 @@ impl Default for SnapRustApp {
             tool: Tool::None,
             tooling: false,
             pen_color: [0.9, 0.3, 0.24],
-            //pen_color: [230., 76., 60.],
             pen_size: 1,
-            highlighter_color: [0.9, 0.3, 0.24],
-            //highlighter_color: [230., 76., 60.],
-            highlighter_size: 1,
             last_pos: Pos2::default(),
             current_pos: Pos2::default(),
             rx: rx,
             tx: tx,
             hotkeys: hotkeys_vec,
+            valid_hotkeys: true,
             manager: GlobalHotKeyManager::new().expect("Failed to initialize GlobalHotKeyManager"),
         }
     }
 }
 
+
+
+
+
+
+
+
+
 impl SnapRustApp {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         cc.egui_ctx.set_visuals(Visuals::dark());
         let mut app = SnapRustApp::default();
-        app.register_hotkey();
+        app.register_hotkeys();
         return app;
     }
 
-    fn register_hotkey(&mut self) {
+    fn register_hotkeys(&mut self) {
         for hotkey in self.hotkeys.iter_mut() {
-            let modifier = hotkey.modifier.clone();
-            let code = hotkey.code.clone();
-            let registered_hotkey = HotKey::new(string_to_modifiers(&modifier), string_to_key(&code).unwrap());
-            hotkey.registered_hotkey = registered_hotkey.clone();
-            if let Err(err) = self.manager.register(registered_hotkey) {
-                eprintln!("Failed to register hotkey: {}", err);
-            }
+            hotkey.register(&self.manager);
         }
     }
 
     fn unregister_hotkeys(&mut self) {
-        let mut hotkeys_to_unregister: Vec<HotKey> = Vec::new();
-
-        for hotkey in self.hotkeys.iter() {
-            hotkeys_to_unregister.push(hotkey.registered_hotkey);
-        } 
-
-        if let Err(err) = self.manager.unregister_all(&hotkeys_to_unregister) {
-            eprintln!("Failed to unregister hotkeys: {}", err);
+        for hotkey in self.hotkeys.iter_mut() {
+            hotkey.unregister(&self.manager);
         }
-    }
-
-    fn get_snapshot(&mut self, ctx: &Context) {
-   
-        let display = self.display.unwrap().clone();
-        let mut timer = self.timer.unwrap().clone();
-
-        if timer < 1.{
-            timer += 0.35;
-        }
-
-        let tx = self.tx.clone();
-        let context = ctx.clone();
-
-        thread::spawn(move || {
-            let display_info = match DisplayInfo::all() {
-                Ok(display_vec) => Some(display_vec[display]),
-                Err(_) => panic!("Invalid screen choice")
-            };
-
-            thread::sleep(Duration::from_millis((timer * 1000.0) as u64));
-
-            let snapshot = take_snapshot(&display_info.unwrap()).unwrap();
-            tx.send(snapshot).ok();
-            context.request_repaint();
-
-        });
     }
 
     fn register_hotkey_listener(&mut self, ctx: &Context, frame: &mut Frame) {
@@ -375,6 +179,39 @@ impl SnapRustApp {
             }
         }
     }
+
+
+    fn get_snapshot(&mut self, ctx: &Context) {
+   
+        let display = self.display.unwrap().clone();
+        let mut timer = self.timer.unwrap().clone();
+
+        if timer < 1.{
+            timer += 0.35;
+        }
+
+        let tx = self.tx.clone();
+        let context = ctx.clone();
+
+        thread::spawn(move || {
+            let display_info = match DisplayInfo::all() {
+                Ok(display_vec) => Some(display_vec[display]),
+                Err(_) => panic!("Invalid screen choice")
+            };
+
+            thread::sleep(Duration::from_millis((timer * 1000.0) as u64));
+
+            let screen : Screen = Screen::new(&display_info.unwrap());
+            let image_buffer = screen.capture().unwrap();
+            let snapshot = DynamicImage::from(image_buffer);
+
+            tx.send(snapshot).ok();
+            context.request_repaint();
+
+        });
+    }
+
+    
 
     fn save_snapshot(&mut self) {
 
@@ -450,28 +287,17 @@ impl SnapRustApp {
             };
 
             // Apply tool
-            if self.tool == Tool::Pen || self.tool == Tool::Highlighter{
+            if self.tool == Tool::Pen {
                 let image_last_pos = get_real_image_pos(self.last_pos, image_response.rect.size(), real_image_size);
-                let image_current_pos = get_real_image_pos(self.current_pos, image_response.rect.size(), real_image_size);
+                let image_current_pos =  get_real_image_pos(self.current_pos, image_response.rect.size(), real_image_size);
                 
                 if self.tool == Tool::Pen {
-                    let rgb_color = linear_to_srgb(self.pen_color);
+                    let rgb_color =  linear_to_srgb(self.pen_color);
                     let color = [rgb_color[0], rgb_color[1], rgb_color[2], 255];
-                    draw_thick_line(&mut self.snapshot.as_mut().unwrap(),
+                    draw_line(&mut self.snapshot.as_mut().unwrap(),
                         image_last_pos.into(),
                         image_current_pos.into(),
-                        self.pen_size,
-                        color.into()
-                    );
-                }
-                else if self.tool == Tool::Highlighter{
-                    let rgb_color = linear_to_srgb(self.highlighter_color);
-
-                    let color = [rgb_color[0], rgb_color[1], rgb_color[2], 50];
-                    draw_thick_line(&mut self.snapshot.as_mut().unwrap(),
-                        image_last_pos.into(),
-                        image_current_pos.into(),
-                        self.highlighter_size,
+                        self.pen_size as i32,
                         color.into()
                     );
                 }
@@ -487,7 +313,7 @@ impl SnapRustApp {
             
 
         } else if image_response.drag_released() {  
-            if self.tool == Tool::Pen || self.tool == Tool::Highlighter {
+            if self.tool == Tool::Pen {
                 self.snapshots_undo.push_back(self.snapshot.as_ref().unwrap().clone());
                 self.snapshots_redo.clear();
             }
@@ -526,6 +352,12 @@ impl SnapRustApp {
         };
     }
 
+
+
+
+
+
+    
     fn render_top_panel(&mut self, ctx: &Context, frame: &mut Frame) {
         if !self.show_settings && !self.show_credits {
             TopBottomPanel::top("top panel")
@@ -659,13 +491,6 @@ impl SnapRustApp {
                         }
                         ui.separator();
 
-                        let highlighter_button = ui.add(Button::new("🖍️").rounding(5.).min_size(button_size));
-                        if highlighter_button.clicked() {
-                            self.tool = Tool::Highlighter;
-                        }
-                        ui.separator();
-
-
                         let crop_button = ui.add(Button::new("✂").rounding(5.).min_size(button_size));
                         if crop_button.clicked() {
                             self.tool = Tool::Crop;
@@ -688,7 +513,6 @@ impl SnapRustApp {
                         match self.tool {
                             Tool::None => none_button.highlight(),
                             Tool::Pen => pen_button.highlight(),
-                            Tool::Highlighter => highlighter_button.highlight(),
                             Tool::Crop => crop_button.highlight(),
                         };
                         
@@ -707,23 +531,6 @@ impl SnapRustApp {
                             }
                             ui.add_space(5.);
                             ui.color_edit_button_rgb(&mut self.pen_color);
-                            ui.add_space(5.);
-                            ui.separator();
-                        });
-                    }
-                    else if self.tool == Tool::Highlighter {
-                        ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
-                            ui.add_space(10.);
-
-                            ui.add(DragValue::new(&mut self.highlighter_size));
-                            if self.highlighter_size<1{
-                                self.highlighter_size = 1;
-                            }
-                            if self.highlighter_size>30{
-                                self.highlighter_size = 30;
-                            }
-                            ui.add_space(5.);
-                            ui.color_edit_button_rgb(&mut self.highlighter_color);
                             ui.add_space(5.);
                             ui.separator();
                         });
@@ -800,9 +607,8 @@ impl SnapRustApp {
                     for (i, hotkey) in self.hotkeys.iter_mut().enumerate() {
                         ui.horizontal(|ui| {
 
-                            ui.label(format!("{}:{}", hotkey.label.clone(), " ".repeat(10 - hotkey.label.len())));
+                            ui.label(format!("{}:", hotkey.label.clone()));
 
-                            
                             egui::ComboBox::from_id_source(i+2)
                             .width(80.)
                             .selected_text(format!("{:}", hotkey.tmp_modifier))
@@ -821,7 +627,7 @@ impl SnapRustApp {
                                 let mut char_iterator = hotkey.tmp_code.chars();
                                 let first_char = char_iterator.next().unwrap().to_string();
                                 let char = char_iterator.next().unwrap().to_string();
-                                let key = string_to_key(char.as_str());
+                                let key = hotkeys_utils::string_to_key(char.as_str());
                                 if key.is_some(){
                                     hotkey.tmp_code = char;
                                 }
@@ -840,18 +646,21 @@ impl SnapRustApp {
                     
                     let apply_button = ui.add(Button::new("Apply"));
                     if apply_button.clicked() {
-                        let mut valid = true;
+
                         let mut encountered_hotkeys = HashSet::new();
 
                         for hotkey in self.hotkeys.iter_mut() {
                             let key = (hotkey.tmp_modifier.clone(), hotkey.tmp_code.clone());
                             if !encountered_hotkeys.insert(key) {
-                                valid = false;
+                                self.valid_hotkeys = false; 
                                 break;
                             }
+
+                            self.valid_hotkeys=true;
                         }
 
-                        if valid {
+                        if self.valid_hotkeys {
+                            
                             for hotkey in self.hotkeys.iter_mut() {
                                 hotkey.modifier = hotkey.tmp_modifier.clone();                            
                                 hotkey.code = hotkey.tmp_code.clone();
@@ -859,7 +668,7 @@ impl SnapRustApp {
                             }
     
                             self.unregister_hotkeys();
-                            self.register_hotkey();
+                            self.register_hotkeys();
     
                             self.show_settings = false;
                         }
@@ -872,6 +681,13 @@ impl SnapRustApp {
                     }
 
                 });
+
+                if self.valid_hotkeys==false {
+                    shortcut_ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+                        ui.add_space(5.);
+                        ui.label(RichText::new("Hotkeys already in use!").color(Color32::from_rgb(255, 0, 0)));
+                    });
+                }
 
             }
             else if self.show_credits{
@@ -913,6 +729,11 @@ impl SnapRustApp {
     }
 
 }
+
+
+
+
+
 
 impl eframe::App for SnapRustApp {
     fn update(&mut self, ctx: &Context, frame: &mut Frame) {
